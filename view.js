@@ -293,7 +293,7 @@ function buildRail() {
       else {
         if (G.gold < sp.cost) { toast('Не хватает золота: нужно ' + sp.cost); Platform.haptic('error'); return; }
         UI.placing = key; UI.sel = null;
-        toast(sp.desc + ' · тапни по траве у тропы');
+        toast('Тапни по траве у тропы');
       }
       updateUI();
     });
@@ -350,7 +350,7 @@ function updateUI() {
   panel.classList.remove('hidden');
   var sp = SIM.TOWERS[t.type], st = t.st;
   var dps = Math.round(st.dmg * st.rate);
-  el.tpName.textContent = sp.name + ' · ур. ' + t.lvl + (t.lvl < 3 ? ' → ' + (t.lvl + 1) : ' (максимум)');
+  el.tpName.textContent = sp.name + ' · ' + t.lvl + (t.lvl < 3 ? '→' + (t.lvl + 1) : ' макс.');
   var cur = 'Сейчас: ' + st.dmg + ' · ' + dps + ' DPS · ' + st.range.toFixed(1) +
     (st.splash ? ' · АоЕ' : '') + (st.slow ? ' · ' + Math.round(st.slow * 100) + '%' : '');
   if (t.lvl < 3) {
