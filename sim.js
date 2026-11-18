@@ -10,7 +10,7 @@ var BUILD_SECONDS = 12;
 var TUNE = { HP0: 100, HPK: 1.26, START_GOLD: 200, WAVE_BONUS: 30, GOLDK: 0.10 };
 
 /* ---------- путь ---------- */
-var WAY = [[-1,1],[8,1],[8,5],[1,5],[1,9],[8,9],[8,13],[4,13],[4,14.3]];
+var WAY = [[-1,1],[8,1],[8,5],[1,5],[1,9],[8,9],[8,13],[4,13],[4,13.55]];
 function PX(c, r) { return { x: (c + 0.5) * CELL, y: (r + 0.5) * CELL }; }
 var PATH = WAY.map(function (p) { return PX(p[0], p[1]); });
 var SEGS = [], TOTAL = 0;
@@ -44,13 +44,15 @@ var PATH_CELLS = {};
 var DECOR = [[6,3],[7,7],[6,11],[2,7],[3,11],[7,15]];
 var BLOCK = {};
 DECOR.forEach(function (d) { BLOCK[d[0] + ',' + d[1]] = 1; });
-[[2,14],[3,14],[5,14],[6,14],[3,15],[5,15],[4,15]].forEach(function (d) { BLOCK[d[0] + ',' + d[1]] = 1; });
+/* пятно замка внизу строить нельзя */
+[[1,14],[2,14],[3,14],[4,14],[5,14],[6,14],[7,14],[8,14],[1,15],[2,15],[3,15],[4,15],[5,15],[6,15],[7,15],[8,15]]
+  .forEach(function (d) { BLOCK[d[0] + ',' + d[1]] = 1; });
 
 /* ---------- башни ---------- */
 var TOWERS = {
   archer:   { name: 'Лучники',  cost: 80,  dmg: 14, rate: 2.4, range: 2.9, proj: 'arrow', pspeed: 520, desc: 'Быстрые стрелы по одной цели' },
   ballista: { name: 'Баллиста', cost: 150, dmg: 70, rate: 0.9, range: 4.4, proj: 'bolt',  pspeed: 760, desc: 'Тяжёлый болт, пробивает броню' },
-  frost:    { name: 'Стужа',    cost: 140, dmg: 9,  rate: 1.5, range: 2.7, proj: 'ice',   pspeed: 460, slow: 0.45, slowDur: 1.6, desc: 'Замедляет орков на 45%' },
+  frost:    { name: 'Стужа',    cost: 120, dmg: 9,  rate: 1.5, range: 2.7, proj: 'ice',   pspeed: 460, slow: 0.45, slowDur: 1.6, desc: 'Замедляет орков на 45%' },
   mage:     { name: 'Магия',    cost: 190, dmg: 44, rate: 1.2, range: 3.3, proj: 'orb',   pspeed: 340, splash: 0.95, desc: 'Урон по площади' }
 };
 var UP_MUL = [0, 0.75, 1.3];        // цена апгрейда как доля base cost
@@ -110,29 +112,46 @@ function newGame(seed) {
   };
 }
 
-function startWave(G) {
-  if (G.phase !== 'build' || G.wave >= WAVES) return false;
+/* Волну можно позвать раньше — поверх текущей, за золотой бонус. */
+function earlyBonus(wave) { return 20 + 5 * wave; }
+
+function startWave(G, early) {
+  if (G.wave >= WAVES) return { ok: false, why: 'волны кончились' };
+  var canNormal = G.phase === 'build',
+      canEarly = !!early && G.phase === 'wave' && G.wave < WAVES && G.wave >= 1;
+  if (!canNormal && !canEarly) return { ok: false, why: 'сейчас нельзя' };
+
   G.wave++;
-  G.waveHp = TUNE.HP0 * Math.pow(TUNE.HPK, G.wave - 1);
+  var hp = TUNE.HP0 * Math.pow(TUNE.HPK, G.wave - 1);
+  var goldK = 1 + TUNE.GOLDK * (G.wave - 1);
   var def = WAVEDEF[G.wave - 1], at = 0.6, q = [];
   def.forEach(function (grp) {
     for (var i = 0; i < grp.n; i++) {
-      q.push({ type: grp.t, at: at });
+      q.push({ type: grp.t, at: at, hp: hp, goldK: goldK });
       at += grp.gap;
     }
     at += 0.8;
   });
-  G.queue = q; G.spawnT = 0; G.phase = 'wave';
-  return true;
+
+  if (canNormal) {
+    G.queue = q; G.spawnT = 0; G.phase = 'wave'; G.waveHp = hp;
+    return { ok: true, early: false };
+  }
+  /* ранний вызов: враги новой волны идут сразу за текущими */
+  var off = G.spawnT + 1.0, bonus = earlyBonus(G.wave);
+  q.forEach(function (it) { it.at += off; G.queue.push(it); });
+  G.queue.sort(function (a, b) { return a.at - b.at; });
+  G.gold += bonus;
+  return { ok: true, early: true, bonus: bonus };
 }
 
 function spawn(G, item) {
   var d = ENEMIES[item.type];
   var e = {
     id: G.nextId++, type: item.type, name: d.name,
-    maxHp: Math.round(G.waveHp * d.hp), hp: Math.round(G.waveHp * d.hp),
+    maxHp: Math.round((item.hp || G.waveHp) * d.hp), hp: Math.round((item.hp || G.waveHp) * d.hp),
     speed: d.speed, armor: d.armor, r: d.r, leak: d.leak,
-    gold: Math.round(d.gold * (1 + TUNE.GOLDK * (G.wave - 1))),
+    gold: Math.round(d.gold * (item.goldK || 1)),
     s: 0, lane: (G.rng() - 0.5) * 14, slowT: 0, slowMul: 0,
     x: PATH[0].x, y: PATH[0].y, dead: false, wob: G.rng() * 6.28
   };
@@ -400,7 +419,7 @@ root.SIM = {
   CELL: CELL, COLS: COLS, ROWS: ROWS, WAVES: WAVES, LIVES: LIVES, START_GOLD: TUNE.START_GOLD, TUNE: TUNE,
   TOWERS: TOWERS, ENEMIES: ENEMIES, UP_MUL: UP_MUL,
   PATH: PATH, TOTAL: TOTAL, PATH_CELLS: PATH_CELLS, DECOR: DECOR, SPOTS: SPOTS,
-  newGame: newGame, startWave: startWave, step: step, placeTower: placeTower,
+  newGame: newGame, startWave: startWave, earlyBonus: earlyBonus, step: step, placeTower: placeTower,
   upgrade: upgrade, sell: sell, upCost: upCost, towerAt: towerAt, cellFree: cellFree,
   towerStats: towerStats, posAt: posAt, simulate: simulate, simulateMany: simulateMany
 };
