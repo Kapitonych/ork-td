@@ -68,10 +68,10 @@ function bake() {
     g.beginPath(); g.moveTo(SIM.PATH[0].x, SIM.PATH[0].y);
     for (var k = 1; k < SIM.PATH.length; k++) g.lineTo(SIM.PATH[k].x, SIM.PATH[k].y);
   }
-  trace(); g.strokeStyle = 'rgba(120,90,52,.55)'; g.lineWidth = 38; g.stroke();
-  trace(); g.strokeStyle = '#a8804f'; g.lineWidth = 33; g.stroke();
-  trace(); g.strokeStyle = '#c9a06b'; g.lineWidth = 27; g.stroke();
-  trace(); g.strokeStyle = '#ddb884'; g.lineWidth = 19; g.stroke();
+  trace(); g.strokeStyle = 'rgba(120,90,52,.55)'; g.lineWidth = 34; g.stroke();
+  trace(); g.strokeStyle = '#a8804f'; g.lineWidth = 29; g.stroke();
+  trace(); g.strokeStyle = '#c9a06b'; g.lineWidth = 23; g.stroke();
+  trace(); g.strokeStyle = '#ddb884'; g.lineWidth = 16; g.stroke();
 
   /* фактура земли: пятна и борозды */
   for (var s = 6; s < SIM.TOTAL; s += 9) {
@@ -144,7 +144,7 @@ function drawTower(g, t, ghost, ok) {
   var bob = t.recoil ? t.recoil * 1.6 : 0;
   g.save();
   if (ghost) g.globalAlpha = 0.55;
-  SPR.put(g, spr, t.x, t.y + 14 + bob, 1.28);
+  SPR.put(g, spr, t.x, t.y + 10 + bob, 1.02);
   g.restore();
   /* уровень — золотые ромбы под башней */
   var lvl = t.lvl || 1;
@@ -348,14 +348,20 @@ function updateUI() {
   for (var j = 0; j < G.towers.length; j++) if (G.towers[j].id === UI.sel) t = G.towers[j];
   if (!t) { panel.classList.add('hidden'); return; }
   panel.classList.remove('hidden');
-  var sp = SIM.TOWERS[t.type];
-  el.tpName.textContent = sp.name + ' · ур. ' + t.lvl;
-  el.tpStats.innerHTML = 'Урон ' + t.st.dmg + ' · ' + t.st.rate.toFixed(1) + '/с · радиус ' + t.st.range.toFixed(1) +
-    (t.st.splash ? ' · по площади' : '') + (t.st.slow ? ' · замедление' : '');
+  var sp = SIM.TOWERS[t.type], st = t.st;
+  var dps = Math.round(st.dmg * st.rate);
+  el.tpName.textContent = sp.name + ' · ур. ' + t.lvl + (t.lvl < 3 ? ' → ' + (t.lvl + 1) : ' (максимум)');
+  var cur = 'Сейчас: ' + st.dmg + ' · ' + dps + ' DPS · ' + st.range.toFixed(1) +
+    (st.splash ? ' · АоЕ' : '') + (st.slow ? ' · ' + Math.round(st.slow * 100) + '%' : '');
   if (t.lvl < 3) {
+    var nx = SIM.towerStats(t.type, t.lvl + 1);
+    var ndps = Math.round(nx.dmg * nx.rate);
+    el.tpStats.innerHTML = cur + '<br><b class="nx">После: ' + nx.dmg + ' (+' + (nx.dmg - st.dmg) + ') · ' +
+      ndps + ' DPS · ' + nx.range.toFixed(1) + '</b>';
     el.up.disabled = G.gold < SIM.upCost(t);
     el.up.textContent = 'Улучшить · ' + SIM.upCost(t);
   } else {
+    el.tpStats.innerHTML = cur;
     el.up.disabled = true; el.up.textContent = 'Максимум';
   }
   el.sell.textContent = 'Продать · ' + Math.round(t.spent * 0.5);
