@@ -99,6 +99,11 @@
   .tbtn .pr{font-size:11px; font-weight:bold; color:var(--gold); line-height:1;}
   .tbtn.sel{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset, 0 0 10px rgba(224,182,78,.25);}
   .tbtn.poor{opacity:.45;}
+  #rail.nudge .tbtn:not(.poor){animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 0 1px rgba(224,182,78,0);}
+    50%{box-shadow:0 0 0 1px rgba(224,182,78,.55), 0 0 10px rgba(224,182,78,.18);}
+  }
   /* ---------- низ ---------- */
   #bottom{flex:0 0 auto; padding:8px 10px 10px; background:#191a13;}
   #btnWave{
@@ -179,9 +184,9 @@
   </div>
 </div>
 
-<script src="sim.js?v=202611182113"></script>
-<script src="sprites.js?v=202611182113"></script>
-<script src="platform.js?v=202611182113"></script>
-<script src="view.js?v=202611182113"></script>
+<script src="sim.js?v=202611182215"></script>
+<script src="sprites.js?v=202611182215"></script>
+<script src="platform.js?v=202611182215"></script>
+<script src="view.js?v=202611182215"></script>
 </body>
 </html>

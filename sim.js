@@ -7,7 +7,11 @@ var CELL = 40, COLS = 10, ROWS = 16;
 var START_GOLD = 200, LIVES = 20, WAVES = 10;
 var BUILD_SECONDS = 12;
 /* числа, которые крутятся при балансировке */
-var TUNE = { HP0: 100, HPK: 1.26, START_GOLD: 200, WAVE_BONUS: 30, GOLDK: 0.10 };
+var TUNE = {
+  WAVE_DIFF: 0.95, START_GOLD: 300, WAVE_BONUS: 45, GOLDK: 0.12, LIVES: 25,
+  /* множитель HP по волнам: первые — обучающие, к десятой давление растёт */
+  SHAPE: [1,1,1.1,1.3,1.55,1.85,2.2,2.7,3.3,4.0]
+};
 
 /* ---------- путь ---------- */
 var WAY = [[-1,1],[8,1],[8,5],[1,5],[1,9],[8,9],[8,13],[4,13],[4,13.55]];
@@ -75,20 +79,22 @@ var ENEMIES = {
   shield:  { name: 'Щитоносец',    hp: 1.55, speed: 38,  gold: 12, armor: 5, r: 15, leak: 1 },
   berserk: { name: 'Берсерк',      hp: 0.90, speed: 82,  gold: 10, armor: 0, r: 13, leak: 1 },
   warg:    { name: 'Варг',         hp: 0.50, speed: 100, gold: 7,  armor: 0, r: 12, leak: 1 },
-  boss:    { name: 'Вождь орков',  hp: 14,   speed: 32,  gold: 90, armor: 8, r: 24, leak: 5 }
+  boss:    { name: 'Вождь орков',  hp: 8,    speed: 32,  gold: 90, armor: 8, r: 24, leak: 5 }
 };
 
+/* Волны: HP растёт медленно, давление — количеством и типами (как в Kingdom Rush).
+   hp — HP одного «эталонного» орка в волне; TUNE.WAVE_DIFF масштабирует всю таблицу. */
 var WAVEDEF = [
-  [{ t: 'goblin',  n: 8,  gap: 0.80 }],
-  [{ t: 'goblin',  n: 10, gap: 0.70 }],
-  [{ t: 'orc',     n: 6,  gap: 1.00 }, { t: 'goblin',  n: 6,  gap: 0.55 }],
-  [{ t: 'orc',     n: 8,  gap: 0.90 }, { t: 'warg',    n: 5,  gap: 0.50 }],
-  [{ t: 'shield',  n: 5,  gap: 1.20 }, { t: 'orc',     n: 6,  gap: 0.80 }],
-  [{ t: 'berserk', n: 6,  gap: 0.55 }, { t: 'orc',     n: 7,  gap: 0.80 }],
-  [{ t: 'warg',    n: 10, gap: 0.40 }, { t: 'shield',  n: 4,  gap: 1.10 }],
-  [{ t: 'orc',     n: 10, gap: 0.70 }, { t: 'berserk', n: 6,  gap: 0.50 }],
-  [{ t: 'shield',  n: 6,  gap: 1.00 }, { t: 'berserk', n: 8,  gap: 0.45 }, { t: 'warg', n: 6, gap: 0.40 }],
-  [{ t: 'boss',    n: 1,  gap: 2.00 }, { t: 'orc',     n: 12, gap: 0.60 }, { t: 'warg', n: 8, gap: 0.40 }]
+  { hp: 180, groups: [{ t: 'goblin',  n: 8,  gap: 0.80 }] },
+  { hp: 180, groups: [{ t: 'goblin',  n: 10, gap: 0.70 }] },
+  { hp: 145, groups: [{ t: 'orc',     n: 6,  gap: 1.00 }, { t: 'goblin', n: 5, gap: 0.65 }] },
+  { hp: 155, groups: [{ t: 'orc',     n: 8,  gap: 0.85 }, { t: 'warg',   n: 4, gap: 0.50 }] },
+  { hp: 140, groups: [{ t: 'orc',     n: 6,  gap: 0.90 }, { t: 'shield', n: 5, gap: 1.10 }] },
+  { hp: 185, groups: [{ t: 'orc',     n: 8,  gap: 0.75 }, { t: 'berserk',n: 5, gap: 0.55 }] },
+  { hp: 215, groups: [{ t: 'warg',    n: 10, gap: 0.40 }, { t: 'shield', n: 5, gap: 1.00 }] },
+  { hp: 215, groups: [{ t: 'orc',     n: 10, gap: 0.65 }, { t: 'berserk',n: 6, gap: 0.50 }] },
+  { hp: 210, groups: [{ t: 'shield',  n: 6,  gap: 0.95 }, { t: 'berserk',n: 8, gap: 0.45 }, { t: 'warg', n: 5, gap: 0.40 }] },
+  { hp: 220, groups: [{ t: 'boss',    n: 1,  gap: 1.60 }, { t: 'orc',    n: 10, gap: 0.60 }, { t: 'warg', n: 8, gap: 0.40 }] }
 ];
 
 function mulberry32(a) {
@@ -104,16 +110,22 @@ function mulberry32(a) {
 function newGame(seed) {
   return {
     seed: (seed >>> 0) || 1, rng: mulberry32((seed >>> 0) || 1),
-    gold: TUNE.START_GOLD, lives: LIVES, wave: 0, phase: 'build',
+    gold: TUNE.START_GOLD, lives: TUNE.LIVES, wave: 0, phase: 'build',
     time: 0, buildLeft: BUILD_SECONDS,
     towers: [], enemies: [], shots: [], parts: [],
-    queue: [], spawnT: 0, waveHp: TUNE.HP0,
+    queue: [], spawnT: 0, waveHp: 0,
     kills: 0, leaks: 0, nextId: 1, over: null, stars: 0, flash: 0
   };
 }
 
 /* Волну можно позвать раньше — поверх текущей, за золотой бонус. */
 function earlyBonus(wave) { return 20 + 5 * wave; }
+
+/* сколько врагов в волне — для подписи кнопки */
+function waveCount(w) {
+  var def = WAVEDEF[w - 1]; if (!def) return 0;
+  return def.groups.reduce(function (a, g) { return a + g.n; }, 0);
+}
 
 function startWave(G, early) {
   if (G.wave >= WAVES) return { ok: false, why: 'волны кончились' };
@@ -122,10 +134,11 @@ function startWave(G, early) {
   if (!canNormal && !canEarly) return { ok: false, why: 'сейчас нельзя' };
 
   G.wave++;
-  var hp = TUNE.HP0 * Math.pow(TUNE.HPK, G.wave - 1);
+  var def = WAVEDEF[G.wave - 1];
+  var hp = def.hp * (TUNE.WAVE_DIFF || 1) * ((TUNE.SHAPE && TUNE.SHAPE[G.wave - 1]) || 1);
   var goldK = 1 + TUNE.GOLDK * (G.wave - 1);
-  var def = WAVEDEF[G.wave - 1], at = 0.6, q = [];
-  def.forEach(function (grp) {
+  var at = 0.6, q = [];
+  def.groups.forEach(function (grp) {
     for (var i = 0; i < grp.n; i++) {
       q.push({ type: grp.t, at: at, hp: hp, goldK: goldK });
       at += grp.gap;
@@ -291,7 +304,7 @@ function step(G, dt) {
     G.gold += TUNE.WAVE_BONUS;
     if (G.wave >= WAVES) {
       G.phase = 'win'; G.over = 'win';
-      G.stars = G.lives >= 15 ? 3 : G.lives >= 8 ? 2 : 1;
+      G.stars = G.lives >= 20 ? 3 : G.lives >= 12 ? 2 : 1;
     } else {
       G.phase = 'build'; G.buildLeft = BUILD_SECONDS;
     }
@@ -366,8 +379,20 @@ function nextSpot(G) {
   return null;
 }
 
+/* skill 1.0 — идеальный игрок, 0.5 — «поставил куда попало, улучшил что смог» */
+function simSpot(G, skill) {
+  var pool = skill >= 0.95 ? 4 : Math.round(4 + (1 - skill) * 110);
+  var start = Math.floor(G.rng() * Math.min(pool, SPOTS.length));
+  for (var i = 0; i < SPOTS.length; i++) {
+    var sp = SPOTS[(start + i) % SPOTS.length];
+    if (cellFree(G, sp.c, sp.r)) return sp;
+  }
+  return null;
+}
+
 function simulate(seed, opt) {
   opt = opt || {};
+  var skill = opt.skill == null ? 1 : opt.skill;
   var G = newGame(seed), t = 0, h = 1 / 30, order = ['archer', 'ballista', 'mage', 'frost'], mixed = 0;
   var trace = [], traceLast = 0;
   while (!G.over && t < 900) {
@@ -375,15 +400,16 @@ function simulate(seed, opt) {
       var guard = 0;
       while (guard++ < 30) {
         var maxT = opt.maxTowers || 12;
-        var spot = nextSpot(G);
+        var spot = simSpot(G, skill);
         var type = G.gold >= TOWERS.mage.cost && mixed % 3 === 2 ? 'mage' : G.gold >= TOWERS.ballista.cost && mixed % 3 === 1 ? 'ballista' : 'archer';
-        if (spot && G.towers.length < maxT && G.gold >= TOWERS[type].cost) {
+        var reserve = 1 + (1 - skill) * 0.9;   // новичок копит и строит реже
+        if (spot && G.towers.length < maxT && G.gold >= TOWERS[type].cost * reserve) {
           placeTower(G, spot.c, spot.r, type); mixed++; continue;
         }
         var up = null;
         for (var i = 0; i < G.towers.length; i++) {
           var tt = G.towers[i];
-          if (tt.lvl < 3 && G.gold >= upCost(tt) && (!up || upCost(tt) < upCost(up))) up = tt;
+          if (tt.lvl < 3 && G.gold >= upCost(tt) * (skill >= 0.95 ? 1 : 1.7) && (!up || upCost(tt) < upCost(up))) up = tt;
         }
         if (up) { upgrade(G, up.id); continue; }
         break;
@@ -403,23 +429,27 @@ function simulate(seed, opt) {
 }
 
 function simulateMany(n, opt) {
-  var wins = 0, waves = [], lives = [], secs = [], stars = [];
+  opt = opt || {};
+  var wins = 0, waves = [], lives = [], secs = [], stars = [], diedOn = [];
   for (var i = 1; i <= n; i++) {
     var r = simulate(i * 7919, opt);
+    if (!r.win) diedOn.push(r.wave);
     if (r.win) wins++;
     waves.push(r.wave); lives.push(r.lives); secs.push(r.seconds); stars.push(r.stars);
   }
   function avg(a) { return Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length * 10) / 10; }
   function max(a) { return Math.max.apply(null, a); }
   function min(a) { return Math.min.apply(null, a); }
-  return { runs: n, winRate: Math.round(wins / n * 100), avgWave: avg(waves), maxWave: max(waves), minWave: min(waves), avgLives: avg(lives), avgSeconds: avg(secs), avgStars: avg(stars) };
+  return { runs: n, winRate: Math.round(wins / n * 100), avgWave: avg(waves), maxWave: max(waves), minWave: min(waves),
+    avgLives: avg(lives), avgSeconds: avg(secs), avgStars: avg(stars),
+    diedOn: diedOn.length ? Math.round(diedOn.reduce(function (a, b) { return a + b; }, 0) / diedOn.length * 10) / 10 : null };
 }
 
 root.SIM = {
-  CELL: CELL, COLS: COLS, ROWS: ROWS, WAVES: WAVES, LIVES: LIVES, START_GOLD: TUNE.START_GOLD, TUNE: TUNE,
-  TOWERS: TOWERS, ENEMIES: ENEMIES, UP_MUL: UP_MUL,
+  CELL: CELL, COLS: COLS, ROWS: ROWS, WAVES: WAVES, LIVES: TUNE.LIVES, START_GOLD: TUNE.START_GOLD, TUNE: TUNE,
+  TOWERS: TOWERS, ENEMIES: ENEMIES, UP_MUL: UP_MUL, WAVEDEF: WAVEDEF,
   PATH: PATH, TOTAL: TOTAL, PATH_CELLS: PATH_CELLS, DECOR: DECOR, SPOTS: SPOTS,
-  newGame: newGame, startWave: startWave, earlyBonus: earlyBonus, step: step, placeTower: placeTower,
+  newGame: newGame, startWave: startWave, earlyBonus: earlyBonus, waveCount: waveCount, step: step, placeTower: placeTower,
   upgrade: upgrade, sell: sell, upCost: upCost, towerAt: towerAt, cellFree: cellFree,
   towerStats: towerStats, posAt: posAt, simulate: simulate, simulateMany: simulateMany
 };

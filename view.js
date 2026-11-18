@@ -291,9 +291,13 @@ function updateUI() {
     btns[i].classList.toggle('poor', G.gold < SIM.TOWERS[k].cost);
   }
 
+  /* подсказка «есть на что построиться»: рейка начинает пульсировать */
+  var canBuild = G.phase === 'build' && G.gold >= SIM.TOWERS[ORDER[0]].cost && !UI.placing;
+  rail.classList.toggle('nudge', canBuild);
+
   el.waveBtn.classList.remove('wait', 'early');
   if (G.phase === 'build' && G.wave < SIM.WAVES) {
-    el.waveBtn.textContent = 'В бой · волна ' + (G.wave + 1) + ' (' + Math.ceil(Math.max(0, G.buildLeft)) + ')';
+    el.waveBtn.textContent = 'В бой · волна ' + (G.wave + 1) + ' · ' + SIM.waveCount(G.wave + 1) + ' врагов (' + Math.ceil(Math.max(0, G.buildLeft)) + ')';
     el.waveBtn.classList.add('wait');
   } else if (G.phase === 'wave' && G.wave < SIM.WAVES) {
     el.waveBtn.textContent = 'Рано волну ' + (G.wave + 1) + ' · +' + SIM.earlyBonus(G.wave + 1);
