@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Орды у ворот</title>
+<style>
+  :root{
+    --stone:#2a2b26; --stone2:#3a3a31; --gold:#e0b64e; --gold2:#8a6c22;
+    --blood:#a53a2a; --grass:#2f4a30; --ink:#f2e6cd;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    position:fixed; inset:0; overflow:hidden; overscroll-behavior:none; touch-action:none;
+    background:radial-gradient(circle at 50% 0%, #24261f 0%, #14150f 70%);
+    color:var(--ink);
+    font-family:Georgia,"Times New Roman",serif;
+    user-select:none;
+  }
+  #app{
+    height:100%; display:flex; flex-direction:column;
+    max-width:480px; margin:0 auto; position:relative;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  /* ---------- HUD ---------- */
+  #hud{
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    background:linear-gradient(#3a3a31,#23241d);
+    border-bottom:2px solid #0e0f0b; flex:0 0 auto;
+  }
+  .stat{
+    display:flex; align-items:center; gap:5px; font-size:16px; font-weight:bold;
+    background:#1b1c15; border:1px solid #4a4736; border-radius:8px; padding:4px 9px;
+    min-width:62px; justify-content:center;
+  }
+  .stat .ico{font-size:14px; opacity:.9;}
+  .coin{
+    width:11px; height:11px; border-radius:50%; display:inline-block;
+    background:radial-gradient(circle at 35% 30%, #ffe9a8, #e0b64e 55%, #8a6c22);
+    box-shadow:0 0 0 1px #6b5218 inset;
+  }
+  #hudGold b{color:var(--gold);}
+  #hudLives b{color:#e0736a;}
+  #hudWave b{color:#cfd8b0; font-size:14px;}
+  .spacer{flex:1;}
+  button{font-family:inherit; color:var(--ink); border:none; cursor:pointer;}
+  .mini{
+    background:#1b1c15; border:1px solid #4a4736; border-radius:8px;
+    padding:6px 10px; font-size:14px; font-weight:bold; color:var(--gold);
+  }
+  .mini:active{transform:translateY(1px);}
+  /* ---------- поле ---------- */
+  #fieldWrap{position:relative; flex:1 1 auto; display:flex; align-items:center; justify-content:center; overflow:hidden; min-height:0;}
+  #cv{
+    display:block; width:100%; height:100%; object-fit:contain;
+    image-rendering:-webkit-optimize-contrast;
+    touch-action:none;
+  }
+  #flash{position:absolute; inset:0; pointer-events:none; background:rgba(170,40,30,0); transition:background .12s;}
+  #toast{
+    position:absolute; left:50%; bottom:10px; transform:translate(-50%,0);
+    background:rgba(20,22,16,.92); border:1px solid #6b6244; border-radius:10px;
+    padding:8px 14px; font-size:14px; white-space:normal; max-width:78vw; text-align:center;
+    line-height:1.35; opacity:0; transition:opacity .2s; pointer-events:none;
+  }
+  #toast.on{opacity:1;}
+  /* ---------- панель башни ---------- */
+  #towerPanel{
+    flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:7px 10px;
+    background:linear-gradient(#2f3128,#1d1e17); border-top:2px solid #0e0f0b;
+  }
+  #towerPanel.hidden{display:none;}
+  .tpInfo{flex:1; min-width:0;}
+  .tpName{font-size:14px; font-weight:bold; color:var(--gold); line-height:1.2;}
+  .tpStats{font-size:11.5px; color:#b9b8a4; line-height:1.35;}
+  .tpBtns{display:flex; gap:6px;}
+  #btnUp{
+    background:linear-gradient(#6d5a20,#453714); border:1px solid #b08f36; border-radius:7px;
+    padding:7px 10px; font-size:12.5px; font-weight:bold; color:#f7e6b6;
+  }
+  #btnUp:disabled{opacity:.42;}
+  #btnSell{
+    background:#26271f; border:1px solid #55523f; border-radius:7px;
+    padding:7px 9px; font-size:12px; color:#cfc8ad;
+  }
+  /* ---------- рейка башен ---------- */
+  #rail{
+    flex:0 0 auto; display:flex; gap:6px; padding:7px 8px;
+    background:#191a13; border-top:1px solid #0d0e09;
+  }
+  .tbtn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+    background:linear-gradient(#33352a,#22231b); border:1px solid #4d4a38;
+    border-radius:9px; padding:6px 2px 5px;
+  }
+  .tbtn .ic{font-size:20px; line-height:1;}
+  .tbtn .nm{font-size:10.5px; color:#d9d3ba; line-height:1;}
+  .tbtn .pr{font-size:11px; font-weight:bold; color:var(--gold); line-height:1;}
+  .tbtn.sel{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset, 0 0 10px rgba(224,182,78,.25);}
+  .tbtn.poor{opacity:.45;}
+  /* ---------- низ ---------- */
+  #bottom{flex:0 0 auto; padding:8px 10px 10px; background:#191a13;}
+  #btnWave{
+    width:100%; padding:13px; border-radius:10px; font-size:16px; font-weight:bold;
+    background:linear-gradient(#7d2f24,#4d1a13); border:1px solid #c0654a;
+    color:#ffeede; letter-spacing:.3px;
+  }
+  #btnWave:active{transform:translateY(1px);}
+  #btnWave.wait{background:linear-gradient(#3d3c2a,#2a2919); border-color:#6b6440; color:#cdc7a8;}
+  /* ---------- оверлей ---------- */
+  #overlay{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(8,9,6,.82); z-index:20; padding:18px;
+  }
+  #overlay.hidden{display:none;}
+  .card{
+    background:linear-gradient(#33342a,#1e1f18); border:2px solid #6b6244; border-radius:14px;
+    padding:20px 18px; text-align:center; width:100%; max-width:330px;
+  }
+  .card h2{margin:0 0 8px; font-size:24px; color:var(--gold);}
+  .card p{margin:0 0 16px; font-size:14px; color:#c9c3aa; line-height:1.45;}
+  .card button{
+    width:100%; padding:12px; border-radius:9px; font-size:15px; font-weight:bold;
+    background:linear-gradient(#6d5a20,#453714); border:1px solid #b08f36; color:#f7e6b6;
+  }
+  #winStars{font-size:26px; letter-spacing:4px; color:var(--gold); margin-bottom:6px;}
+  @media (max-height:700px){
+    #hud{padding:5px 8px;} .stat{font-size:14px; padding:3px 7px;}
+    #btnWave{padding:11px; font-size:15px;}
+    .tbtn .ic{font-size:17px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="stat"><span class="coin"></span><b id="hudGold">200</b></div>
+    <div class="stat"><span class="ico">🛡</span><b id="hudLives">20</b></div>
+    <div class="stat"><span class="ico">⚔</span><b id="hudWave">0/10</b></div>
+    <div class="spacer"></div>
+    <button id="btnSpeed" class="mini">×1</button>
+  </header>
+
+  <div id="fieldWrap">
+    <canvas id="cv" width="400" height="640"></canvas>
+    <div id="flash"></div>
+    <div id="toast"></div>
+  </div>
+
+  <section id="towerPanel" class="hidden">
+    <div class="tpInfo">
+      <div class="tpName" id="tpName">Лучники</div>
+      <div class="tpStats" id="tpStats"></div>
+    </div>
+    <div class="tpBtns">
+      <button id="btnUp">Улучшить</button>
+      <button id="btnSell">Продать</button>
+    </div>
+  </section>
+
+  <section id="rail"></section>
+
+  <footer id="bottom">
+    <button id="btnWave">Начать волну</button>
+  </footer>
+</div>
+
+<div id="overlay" class="hidden">
+  <div class="card">
+    <div id="winStars"></div>
+    <h2 id="ovTitle">Победа</h2>
+    <p id="ovText"></p>
+    <button id="ovBtn">Заново</button>
+  </div>
+</div>
+
+<script src="sim.js"></script>
+<script src="platform.js"></script>
+<script src="view.js"></script>
+</body>
+</html>
