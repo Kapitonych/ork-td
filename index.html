@@ -57,17 +57,6 @@
     image-rendering:-webkit-optimize-contrast;
     touch-action:none;
   }
-  #bossbar{
-    position:absolute; left:10px; right:10px; top:6px; z-index:5; pointer-events:none;
-    background:rgba(18,14,10,.82); border:1px solid #7a3a2a; border-radius:9px; padding:5px 9px 7px;
-    box-shadow:0 2px 10px rgba(0,0,0,.45);
-  }
-  #bossbar.hidden{display:none;}
-  .bb-top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px;}
-  .bb-name{font-size:12px; font-weight:bold; color:#f0b9a0; letter-spacing:.4px;}
-  .bb-hp{font-size:11px; color:#d9c9b0;}
-  .bb-track{height:7px; border-radius:4px; background:#2a1a14; overflow:hidden; border:1px solid #52281c;}
-  .bb-fill{height:100%; width:100%; background:linear-gradient(90deg,#c0452f,#e8794a); transition:width .12s linear;}
   #flash{position:absolute; inset:0; pointer-events:none; background:rgba(170,40,30,0); transition:background .12s;}
   #toast{
     position:absolute; left:50%; bottom:6px; transform:translate(-50%,0);
@@ -166,9 +155,6 @@
 
   <div id="fieldWrap">
     <canvas id="cv" width="400" height="640"></canvas>
-    <div id="bossbar" class="hidden">
-      <div class="bb-top"><span class="bb-name">Вождь орков</span><span class="bb-hp" id="bbHp"></span></div>
-      <div class="bb-track"><div class="bb-fill" id="bbFill"></div></div>
     </div>
     <div id="flash"></div>
     <div id="toast"></div>
@@ -201,9 +187,9 @@
   </div>
 </div>
 
-<script src="sim.js?v=202611190147"></script>
-<script src="sprites.js?v=202611190147"></script>
-<script src="platform.js?v=202611190147"></script>
-<script src="view.js?v=202611190147"></script>
+<script src="sim.js?v=202611190153"></script>
+<script src="sprites.js?v=202611190153"></script>
+<script src="platform.js?v=202611190153"></script>
+<script src="view.js?v=202611190153"></script>
 </body>
 </html>

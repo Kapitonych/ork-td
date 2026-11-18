@@ -22,8 +22,7 @@ var el = {
   tpStats: document.getElementById('tpStats'), up: document.getElementById('btnUp'),
   sell: document.getElementById('btnSell'), ovTitle: document.getElementById('ovTitle'),
   ovText: document.getElementById('ovText'), ovBtn: document.getElementById('ovBtn'),
-  stars: document.getElementById('winStars'),
-  bossbar: document.getElementById('bossbar'), bbFill: document.getElementById('bbFill'), bbHp: document.getElementById('bbHp')
+  stars: document.getElementById('winStars')
 };
 
 /* трекер ошибок для проверки сборки */
@@ -57,10 +56,10 @@ function bake() {
   }
   g.globalAlpha = 1;
   /* крупные пятна, чтобы не было шахматки */
-  for (var i = 0; i < 60; i++) {
-    var px = prand(i * 3.1) * W, py = prand(i * 7.7 + 2) * H, rad = 12 + prand(i * 1.7) * 26;
-    g.fillStyle = i % 2 ? 'rgba(52,110,38,.18)' : 'rgba(255,255,255,.10)';
-    g.beginPath(); g.arc(px, py, rad, 0, 6.283); g.fill();
+  for (var i = 0; i < 34; i++) {
+    var px = prand(i * 3.1) * W, py = prand(i * 7.7 + 2) * H, rad = 18 + prand(i * 1.7) * 34;
+    g.fillStyle = i % 2 ? 'rgba(52,110,38,.10)' : 'rgba(255,255,255,.06)';
+    g.beginPath(); g.ellipse(px, py, rad, rad * 0.62, prand(i) * 3, 0, 6.283); g.fill();
   }
 
   /* тропа */
@@ -101,20 +100,6 @@ function bake() {
     g.fillStyle = 'rgba(' + (q3 > 0.6 ? '120,192,74,' : '88,168,56,') + (0.35 + q3 * 0.25) + ')';
     g.fillRect(bx, by - 2.4, 1.4, 2.6 + q3 * 2.2);
     if (q3 > 0.45) g.fillRect(bx + 2, by - 1.2, 1.1, 2 + q3 * 1.6);
-  }
-
-  /* колеи от телег вдоль дороги */
-  for (var s4 = 0; s4 < SIM.TOTAL - 12; s4 += 13) {
-    var b1 = SIM.posAt(s4), b2 = SIM.posAt(s4 + 13);
-    var ex = b2.x - b1.x, ey = b2.y - b1.y, EL = Math.hypot(ex, ey) || 1;
-    var mx = -ey / EL, my = ex / EL;
-    [-7.5, 7.5].forEach(function (side) {
-      g.strokeStyle = 'rgba(190,150,100,.14)'; g.lineWidth = 2.2; g.lineCap = 'round';
-      g.beginPath();
-      g.moveTo(b1.x + mx * side, b1.y + my * side);
-      g.lineTo(b2.x + mx * side, b2.y + my * side);
-      g.stroke();
-    });
   }
 
   /* декор */
@@ -164,6 +149,20 @@ function hpBar(g, e, y) {
   g.fillRect(x, y, w * k, h);
 }
 
+function bossBar(g, e) {
+  var w = Math.max(46, e.r * 3), h = 6;
+  var x = Math.min(W - w - 6, Math.max(6, e.x - w / 2));
+  var y = Math.max(8, e.y - e.r * 2.6);
+  g.fillStyle = 'rgba(12,10,6,.72)';
+  g.fillRect(x - 2, y - 2, w + 4, h + 4);
+  g.fillStyle = '#3a1c14'; g.fillRect(x, y, w, h);
+  var k = Math.max(0, e.hp / e.maxHp);
+  var grd = g.createLinearGradient(x, 0, x + w, 0);
+  grd.addColorStop(0, '#cf4a33'); grd.addColorStop(1, '#f0a05a');
+  g.fillStyle = grd; g.fillRect(x, y, w * k, h);
+  g.strokeStyle = 'rgba(20,10,6,.8)'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+}
+
 function drawEnemy(g, e) {
   var sheet = SPR.ENEMY[e.type];
   if (!sheet) return;
@@ -179,8 +178,9 @@ function drawEnemy(g, e) {
     g.beginPath(); g.ellipse(e.x, e.y - e.r * 0.7, e.r * 1.05, e.r * 1.35, 0, 0, 6.283); g.fill();
     g.restore();
   }
-  /* у босса своя полоса сверху экрана — над ним ничего не рисуем */
-  if (e.type !== 'boss') hpBar(g, e, e.y - e.r * 2.8);
+  /* у босса полоса крупнее и не выезжает за верх поля */
+  if (e.type === 'boss') bossBar(g, e);
+  else hpBar(g, e, e.y - e.r * 2.8);
 }
 
 /* ================= сцена ================= */
@@ -331,17 +331,6 @@ function updateUI() {
   } else {
     el.waveBtn.textContent = G.phase === 'win' ? 'Замок выстоял' : 'Замок пал';
     el.waveBtn.classList.add('wait');
-  }
-
-  /* полоса босса — всегда на экране, ничего не уезжает за край */
-  var boss = null;
-  for (var b = 0; b < G.enemies.length; b++) if (G.enemies[b].type === 'boss') boss = G.enemies[b];
-  if (boss) {
-    el.bossbar.classList.remove('hidden');
-    el.bbFill.style.width = Math.max(0, boss.hp / boss.maxHp * 100).toFixed(1) + '%';
-    el.bbHp.textContent = Math.ceil(Math.max(0, boss.hp)) + ' / ' + boss.maxHp;
-  } else {
-    el.bossbar.classList.add('hidden');
   }
 
   var t = null;

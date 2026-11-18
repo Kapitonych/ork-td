@@ -1,59 +1,76 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><title>Изометрия — черновик</title>
+<html lang="ru"><head><meta charset="utf-8"><title>Изометрия: сравнение углов</title>
 <style>
   html,body{margin:0;background:#14150f;color:#f2e6cd;font:13px Georgia,serif;}
-  #wrap{padding:10px;text-align:center;}
-  canvas{display:block;margin:0 auto;background:#2c3f22;}
-  p{margin:8px 4px;font-size:12px;color:#bdb69b;line-height:1.4;}
+  .wrap{display:flex;gap:12px;padding:10px;flex-wrap:wrap;justify-content:center;}
+  figure{margin:0;background:#1c1e16;border:1px solid #3a3d2e;border-radius:10px;padding:7px;}
+  figcaption{font-size:12px;color:#a9b189;margin-top:5px;text-align:center;}
+  canvas{display:block;border-radius:6px;background:#2c3f22;}
 </style></head>
 <body>
-<div id="wrap">
-  <canvas id="cv" width="800" height="900"></canvas>
-  <p>Черновик: тот же карта, но в изометрии (2:1), спрайты стоят вертикально. Никакого 3D — чистый canvas 2D.</p>
+<div class="wrap">
+  <figure><canvas id="a" width="620" height="360"></canvas><figcaption>A · ландшафт · угол 2:1 (классика, как Kingdom Rush)</figcaption></figure>
+  <figure><canvas id="b" width="620" height="360"></canvas><figcaption>B · ландшафт · угол 3.2:1 (плоско, «вид сверху под наклоном»)</figcaption></figure>
+  <figure><canvas id="c" width="390" height="700"></canvas><figcaption>C · портрет · угол 2:1, карта вписана</figcaption></figure>
 </div>
 <script src="sim.js"></script>
 <script src="sprites.js"></script>
 <script>
-(function(){
-  var cv=document.getElementById('cv'), g=cv.getContext('2d');
-  var CELL=SIM.CELL, COLS=SIM.COLS, ROWS=SIM.ROWS;
-  var TW=34, TH=17;                    // полуширина/полувысота ромба
-  var OX=cv.width/2, OY=70;
-  function iso(c,r){ return { x: OX + (c-r)*TW, y: OY + (c+r)*TH }; }
-  var DPR=window.devicePixelRatio||1;
-  // поле-ромбы
-  for (var r=-1;r<ROWS+2;r++){
-    for (var c=-1;c<COLS+2;c++){
-      var p=iso(c,r);
-      var isPath=SIM.PATH_CELLS[c+','+r];
-      g.beginPath();
-      g.moveTo(p.x, p.y-TH); g.lineTo(p.x+TW, p.y); g.lineTo(p.x, p.y+TH); g.lineTo(p.x-TW, p.y); g.closePath();
-      g.fillStyle = isPath ? '#c9a06b' : ((c+r)%2 ? '#7cc44f' : '#78c04c');
-      g.fill();
-      g.strokeStyle='rgba(0,0,0,.07)'; g.lineWidth=1; g.stroke();
-    }
+function drawIso(cv, cols, rows, twRatio, sprScale) {
+  var g = cv.getContext('2d');
+  var DPR = Math.min(2, window.devicePixelRatio || 1);
+  var W = cv.width, H = cv.height;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  g.scale(DPR, DPR);
+
+  var spanX = cols + rows;
+  var TW = Math.min((W - 24) / spanX, (H - 80) / (spanX * twRatio * 2));
+  var TH = TW * twRatio;
+  var OX = W / 2, OY = H / 2 - (spanX * TH) / 2 + 26;
+  function iso(c, r) { return { x: OX + (c - r) * TW, y: OY + (c + r) * TH }; }
+
+  for (var r = -1; r <= rows; r++) for (var c = -1; c <= cols; c++) {
+    var p = iso(c, r);
+    g.beginPath();
+    g.moveTo(p.x, p.y - TH); g.lineTo(p.x + TW, p.y); g.lineTo(p.x, p.y + TH); g.lineTo(p.x - TW, p.y); g.closePath();
+    g.fillStyle = (c + r) % 2 ? '#7cc44f' : '#79c14c'; g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.05)'; g.lineWidth = 1; g.stroke();
   }
-  // башни и враги — рисуем вертикальными спрайтами
-  var towers=[['archer',2,3],['catapult',6,4],['mage',3,8],['frost',6,11],['ballista',8,6]];
-  towers.forEach(function(t){
-    var p=iso(t[1],t[2]);
-    g.fillStyle='rgba(0,0,0,.25)';
-    g.beginPath(); g.ellipse(p.x, p.y+2, 16, 7, 0, 0, 6.283); g.fill();
-    var spr=SPR.TOWER[t[0]];
-    if (spr) SPR.put(g, spr, p.x, p.y+4, 1.05);
+  var seq = [[cols - 1, 1], [cols - 1, 4], [1, 4], [1, 7], [cols - 1, 7], [cols - 1, 10], [Math.floor(cols / 2), 10], [Math.floor(cols / 2), rows - 1]];
+  var path = [[-1, 1]].concat(seq), cells = {};
+  for (var k = 0; k < path.length - 1; k++) {
+    var a = path[k], b = path[k + 1];
+    var dc = Math.sign(b[0] - a[0]), dr = Math.sign(b[1] - a[1]);
+    var cc = a[0], rr2 = a[1], guard = 0;
+    while ((cc !== b[0] || rr2 !== b[1]) && guard++ < 200) { cells[cc + ',' + rr2] = 1; cc += dc; rr2 += dr; }
+    cells[b[0] + ',' + b[1]] = 1;
+  }
+  Object.keys(cells).forEach(function (key) {
+    var q = key.split(','), c = +q[0], r = +q[1], p = iso(c, r);
+    g.beginPath();
+    g.moveTo(p.x, p.y - TH); g.lineTo(p.x + TW, p.y); g.lineTo(p.x, p.y + TH); g.lineTo(p.x - TW, p.y); g.closePath();
+    g.fillStyle = ((c + r) % 2) ? '#cfa873' : '#c9a06b'; g.fill();
   });
-  var types=['orc','goblin','shield','berserk','warg','boss'];
-  var pts=[[0,2],[2,2],[5,2],[7,2],[1,6],[8,10]];
-  types.forEach(function(t,i){
-    var q=pts[i], p=iso(q[0],q[1]);
-    g.fillStyle='rgba(0,0,0,.28)';
-    g.beginPath(); g.ellipse(p.x, p.y+2, 10, 4.5, 0, 0, 6.283); g.fill();
-    var sheet=SPR.ENEMY[t];
-    if (sheet) SPR.put(g, sheet[i%2], p.x, p.y+3);
+
+  var items = [];
+  [[3, 3, 'archer'], [5, 2, 'catapult'], [2, 6, 'mage'], [5, 8, 'frost'], [7, 5, 'ballista']].forEach(function (t) {
+    items.push({ d: t[0] + t[1], kind: 'tower', type: t[2], c: t[0], r: t[1] });
   });
-  // подпись
-  g.fillStyle='#f2e6cd'; g.font='bold 15px Georgia'; g.textAlign='center';
-  g.fillText('Тот же уровень в изометрии 2:1', cv.width/2, 34);
-})();
+  [['orc', 2, 1], ['goblin', 3, 1], ['shield', 5, 1], ['warg', 1, 5], ['boss', 8, Math.min(rows - 2, 9)]].forEach(function (e, i) {
+    items.push({ d: e[1] + e[2] + 0.02, kind: 'enemy', type: e[0], c: e[1], r: e[2], fr: i % 2 });
+  });
+  items.sort(function (x, y) { return x.d - y.d; });
+  items.forEach(function (it) {
+    var p = iso(it.c, it.r);
+    g.fillStyle = 'rgba(0,0,0,.25)';
+    g.beginPath(); g.ellipse(p.x, p.y + 1, TW * 0.52, TH * 0.52, 0, 0, 6.283); g.fill();
+    var spr = it.kind === 'tower' ? SPR.TOWER[it.type] : SPR.ENEMY[it.type][it.fr];
+    if (spr) SPR.put(g, spr, p.x, p.y + 3, sprScale);
+  });
+}
+drawIso(document.getElementById('a'), 10, 12, 0.5, 0.9);
+drawIso(document.getElementById('b'), 10, 12, 0.31, 0.9);
+drawIso(document.getElementById('c'), 8, 12, 0.5, 0.66);
 </script>
 </body></html>
