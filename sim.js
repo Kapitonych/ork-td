@@ -54,11 +54,11 @@ DECOR.forEach(function (d) { BLOCK[d[0] + ',' + d[1]] = 1; });
 
 /* ---------- башни ---------- */
 var TOWERS = {
-  archer:   { name: 'Лучники',  cost: 80,  dmg: 14, rate: 2.4, range: 2.9, proj: 'arrow', pspeed: 520, desc: 'Быстрые стрелы по одной цели' },
-  ballista: { name: 'Баллиста', cost: 150, dmg: 70, rate: 0.9, range: 4.4, proj: 'bolt',  pspeed: 760, desc: 'Тяжёлый болт, пробивает броню' },
+  archer:   { name: 'Лучники',  cost: 80,  dmg: 16, rate: 2.4, range: 2.9, proj: 'arrow', pspeed: 520, desc: 'Быстрые стрелы по одной цели' },
+  ballista: { name: 'Баллиста', cost: 150, dmg: 85, rate: 0.9, range: 4.4, proj: 'bolt',  pspeed: 760, desc: 'Тяжёлый болт, пробивает броню' },
   frost:    { name: 'Стужа',    cost: 120, dmg: 9,  rate: 1.5, range: 2.7, proj: 'ice',   pspeed: 460, slow: 0.45, slowDur: 1.6, desc: 'Замедляет орков на 45%' },
-  mage:     { name: 'Магия',    cost: 190, dmg: 40, rate: 1.2, range: 3.3, proj: 'orb',   pspeed: 340, splash: 1.5, desc: 'Урон по площади' },
-  catapult: { name: 'Катапульта', cost: 220, dmg: 95, rate: 0.55, range: 4.0, proj: 'stone', pspeed: 300, splash: 1.9, desc: 'Тяжёлый камень, бьёт по толпе' }
+  mage:     { name: 'Магия',    cost: 190, dmg: 38, rate: 1.2, range: 3.3, proj: 'orb',   pspeed: 340, splash: 1.15, desc: 'Урон по площади' },
+  catapult: { name: 'Катапульта', cost: 220, dmg: 80, rate: 0.5, range: 4.0, proj: 'stone', pspeed: 300, splash: 1.55, desc: 'Тяжёлый камень, бьёт по толпе' }
 };
 var UP_MUL = [0, 0.75, 1.3];        // цена апгрейда как доля base cost
 
@@ -93,9 +93,9 @@ var WAVEDEF = [
   { hp: 140, groups: [{ t: 'orc',     n: 6,  gap: 0.90 }, { t: 'shield', n: 5, gap: 1.10 }] },
   { hp: 185, groups: [{ t: 'orc',     n: 8,  gap: 0.75 }, { t: 'berserk',n: 5, gap: 0.55 }] },
   { hp: 215, groups: [{ t: 'warg',    n: 10, gap: 0.40 }, { t: 'shield', n: 5, gap: 1.00 }] },
-  { hp: 215, groups: [{ t: 'orc',     n: 10, gap: 0.65 }, { t: 'berserk',n: 6, gap: 0.50 }] },
-  { hp: 210, groups: [{ t: 'shield',  n: 6,  gap: 0.95 }, { t: 'berserk',n: 8, gap: 0.45 }, { t: 'warg', n: 5, gap: 0.40 }] },
-  { hp: 220, groups: [{ t: 'boss',    n: 1,  gap: 1.60 }, { t: 'orc',    n: 10, gap: 0.60 }, { t: 'warg', n: 8, gap: 0.40 }] }
+  { hp: 215, groups: [{ t: 'orc',     n: 10, gap: 0.62 }, { t: 'berserk',n: 7, gap: 0.48 }, { t: 'shield', n: 3, gap: 1.0 }] },
+  { hp: 210, groups: [{ t: 'shield',  n: 8,  gap: 0.85 }, { t: 'berserk',n: 9, gap: 0.42 }, { t: 'warg', n: 6, gap: 0.38 }] },
+  { hp: 220, groups: [{ t: 'boss',    n: 1,  gap: 1.50 }, { t: 'orc',    n: 12, gap: 0.55 }, { t: 'shield', n: 5, gap: 0.9 }, { t: 'warg', n: 8, gap: 0.38 }] }
 ];
 
 function mulberry32(a) {
@@ -277,7 +277,12 @@ function step(G, dt) {
         var rad = s.splash * CELL;
         for (var m = 0; m < G.enemies.length; m++) {
           var en = G.enemies[m];
-          if (!en.dead && Math.hypot(en.x - s.tx, en.y - s.ty) <= rad) damage(G, en, s.dmg, s);
+          if (en.dead) continue;
+          var dd = Math.hypot(en.x - s.tx, en.y - s.ty);
+          if (dd > rad) continue;
+          /* затухание: 100% в центре, 45% на краю — толпа больше не удаляется одним камнем */
+          var falloff = 1 - 0.55 * (dd / rad);
+          damage(G, en, s.dmg * falloff, s);
         }
         burst(G, s.tx, s.ty, 10, '#b98cff');
         G.rings.push({ x: s.tx, y: s.ty, r: 6, max: s.splash * CELL, life: 0.32, t: 0.32 });

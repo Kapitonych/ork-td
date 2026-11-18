@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Изометрия — черновик</title>
+<style>
+  html,body{margin:0;background:#14150f;color:#f2e6cd;font:13px Georgia,serif;}
+  #wrap{padding:10px;text-align:center;}
+  canvas{display:block;margin:0 auto;background:#2c3f22;}
+  p{margin:8px 4px;font-size:12px;color:#bdb69b;line-height:1.4;}
+</style></head>
+<body>
+<div id="wrap">
+  <canvas id="cv" width="800" height="900"></canvas>
+  <p>Черновик: тот же карта, но в изометрии (2:1), спрайты стоят вертикально. Никакого 3D — чистый canvas 2D.</p>
+</div>
+<script src="sim.js"></script>
+<script src="sprites.js"></script>
+<script>
+(function(){
+  var cv=document.getElementById('cv'), g=cv.getContext('2d');
+  var CELL=SIM.CELL, COLS=SIM.COLS, ROWS=SIM.ROWS;
+  var TW=34, TH=17;                    // полуширина/полувысота ромба
+  var OX=cv.width/2, OY=70;
+  function iso(c,r){ return { x: OX + (c-r)*TW, y: OY + (c+r)*TH }; }
+  var DPR=window.devicePixelRatio||1;
+  // поле-ромбы
+  for (var r=-1;r<ROWS+2;r++){
+    for (var c=-1;c<COLS+2;c++){
+      var p=iso(c,r);
+      var isPath=SIM.PATH_CELLS[c+','+r];
+      g.beginPath();
+      g.moveTo(p.x, p.y-TH); g.lineTo(p.x+TW, p.y); g.lineTo(p.x, p.y+TH); g.lineTo(p.x-TW, p.y); g.closePath();
+      g.fillStyle = isPath ? '#c9a06b' : ((c+r)%2 ? '#7cc44f' : '#78c04c');
+      g.fill();
+      g.strokeStyle='rgba(0,0,0,.07)'; g.lineWidth=1; g.stroke();
+    }
+  }
+  // башни и враги — рисуем вертикальными спрайтами
+  var towers=[['archer',2,3],['catapult',6,4],['mage',3,8],['frost',6,11],['ballista',8,6]];
+  towers.forEach(function(t){
+    var p=iso(t[1],t[2]);
+    g.fillStyle='rgba(0,0,0,.25)';
+    g.beginPath(); g.ellipse(p.x, p.y+2, 16, 7, 0, 0, 6.283); g.fill();
+    var spr=SPR.TOWER[t[0]];
+    if (spr) SPR.put(g, spr, p.x, p.y+4, 1.05);
+  });
+  var types=['orc','goblin','shield','berserk','warg','boss'];
+  var pts=[[0,2],[2,2],[5,2],[7,2],[1,6],[8,10]];
+  types.forEach(function(t,i){
+    var q=pts[i], p=iso(q[0],q[1]);
+    g.fillStyle='rgba(0,0,0,.28)';
+    g.beginPath(); g.ellipse(p.x, p.y+2, 10, 4.5, 0, 0, 6.283); g.fill();
+    var sheet=SPR.ENEMY[t];
+    if (sheet) SPR.put(g, sheet[i%2], p.x, p.y+3);
+  });
+  // подпись
+  g.fillStyle='#f2e6cd'; g.font='bold 15px Georgia'; g.textAlign='center';
+  g.fillText('Тот же уровень в изометрии 2:1', cv.width/2, 34);
+})();
+</script>
+</body></html>
