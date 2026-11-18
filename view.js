@@ -34,7 +34,7 @@ var G = SIM.newGame((Date.now() & 0x7fffffff) || 7);
 var UI = { placing: null, sel: null, ghost: null, speed: 1, toastT: 0, hudT: 0, record: 0 };
 try { UI.record = (Platform.load() || {}).bestStars || 0; } catch (e) {}
 
-var ICONS = { archer: '🏹', frost: '❄️', ballista: '🎯', mage: '✨' };
+var ICONS = { archer: '🏹', frost: '❄️', ballista: '🎯', mage: '✨', catapult: '🪨' };
 var ORDER = Object.keys(SIM.TOWERS).sort(function (a, b) { return SIM.TOWERS[a].cost - SIM.TOWERS[b].cost; });
 
 function prand(i) { var x = Math.sin(i * 127.1 + 0.5) * 43758.5453; return x - Math.floor(x); }
@@ -180,7 +180,7 @@ function drawEnemy(g, e) {
   hpBar(g, e, e.y - e.r * 2.8);
   if (e.type === 'boss') {
     g.fillStyle = '#f6dfa0'; g.font = 'bold 10px Georgia'; g.textAlign = 'center';
-    g.fillText('ВОЖДЬ', e.x, e.y - e.r * 3.15);
+    g.fillText(e.armor ? 'ВОЖДЬ · броня ' + e.armor : 'ВОЖДЬ', e.x, e.y - e.r * 3.15);
     g.textAlign = 'left';
   }
 }
@@ -235,6 +235,16 @@ function render() {
     SPR.shot(ctx, SPR.SHOT[sh.type] || SPR.SHOT.arrow, sh.x, sh.y, ang, 1);
   }
 
+  /* кольца взрывов */
+  for (var rr = 0; rr < G.rings.length; rr++) {
+    var rn = G.rings[rr], a = Math.max(0, rn.life / rn.t);
+    ctx.strokeStyle = 'rgba(255,196,110,' + (a * 0.75) + ')';
+    ctx.lineWidth = 2.4 * a + 0.6;
+    ctx.beginPath(); ctx.arc(rn.x, rn.y, rn.r, 0, 6.283); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,150,60,' + (a * 0.14) + ')';
+    ctx.beginPath(); ctx.arc(rn.x, rn.y, rn.r, 0, 6.283); ctx.fill();
+  }
+
   /* частицы */
   for (var p = 0; p < G.parts.length; p++) {
     var q = G.parts[p];
@@ -257,13 +267,28 @@ function toast(msg) {
   UI.toastT = 2.2;
 }
 
+/* иконка башни в рейке — маленький рендер настоящего спрайта, без эмодзи */
+function railIcon(key) {
+  var spr = SPR.TOWER[key];
+  var w = 38, h = 46, c = document.createElement('canvas');
+  c.width = w * 2; c.height = h * 2;
+  var g = c.getContext('2d'); g.scale(2, 2);
+  var sc = Math.min((w - 6) / spr.w, (h - 6) / spr.h) * 1.5;
+  g.translate(w / 2, h - 5);
+  g.drawImage(spr.c, -spr.gx * sc, -spr.gy * sc, spr.w * sc, spr.h * sc);
+  return c;
+}
+
 function buildRail() {
   rail.innerHTML = '';
   ORDER.forEach(function (key) {
     var sp = SIM.TOWERS[key];
     var b = document.createElement('button');
     b.className = 'tbtn'; b.dataset.type = key;
-    b.innerHTML = '<span class="ic">' + ICONS[key] + '</span><span class="nm">' + sp.name + '</span><span class="pr">' + sp.cost + '</span>';
+    b.appendChild(railIcon(key));
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = sp.name;
+    var pr = document.createElement('span'); pr.className = 'pr'; pr.textContent = sp.cost;
+    b.appendChild(nm); b.appendChild(pr);
     b.addEventListener('click', function (ev) {
       ev.preventDefault(); ev.stopPropagation();
       if (UI.placing === key) { UI.placing = null; UI.ghost = null; toast('Постройка отменена'); }

@@ -8,7 +8,7 @@ var START_GOLD = 200, LIVES = 20, WAVES = 10;
 var BUILD_SECONDS = 12;
 /* числа, которые крутятся при балансировке */
 var TUNE = {
-  WAVE_DIFF: 0.95, START_GOLD: 300, WAVE_BONUS: 45, GOLDK: 0.12, LIVES: 25,
+  WAVE_DIFF: 1.10, START_GOLD: 300, WAVE_BONUS: 45, GOLDK: 0.12, LIVES: 25,
   /* множитель HP по волнам: первые — обучающие, к десятой давление растёт */
   SHAPE: [1,1,1.1,1.3,1.55,1.85,2.2,2.7,3.3,4.0]
 };
@@ -57,7 +57,8 @@ var TOWERS = {
   archer:   { name: 'Лучники',  cost: 80,  dmg: 14, rate: 2.4, range: 2.9, proj: 'arrow', pspeed: 520, desc: 'Быстрые стрелы по одной цели' },
   ballista: { name: 'Баллиста', cost: 150, dmg: 70, rate: 0.9, range: 4.4, proj: 'bolt',  pspeed: 760, desc: 'Тяжёлый болт, пробивает броню' },
   frost:    { name: 'Стужа',    cost: 120, dmg: 9,  rate: 1.5, range: 2.7, proj: 'ice',   pspeed: 460, slow: 0.45, slowDur: 1.6, desc: 'Замедляет орков на 45%' },
-  mage:     { name: 'Магия',    cost: 190, dmg: 44, rate: 1.2, range: 3.3, proj: 'orb',   pspeed: 340, splash: 0.95, desc: 'Урон по площади' }
+  mage:     { name: 'Магия',    cost: 190, dmg: 40, rate: 1.2, range: 3.3, proj: 'orb',   pspeed: 340, splash: 1.5, desc: 'Урон по площади' },
+  catapult: { name: 'Катапульта', cost: 220, dmg: 95, rate: 0.55, range: 4.0, proj: 'stone', pspeed: 300, splash: 1.9, desc: 'Тяжёлый камень, бьёт по толпе' }
 };
 var UP_MUL = [0, 0.75, 1.3];        // цена апгрейда как доля base cost
 
@@ -76,10 +77,10 @@ function upCost(t) { return Math.round(TOWERS[t.type].cost * UP_MUL[t.lvl]); }
 var ENEMIES = {
   goblin:  { name: 'Гоблин',       hp: 0.55, speed: 64,  gold: 6,  armor: 0, r: 12, leak: 1 },
   orc:     { name: 'Орк',          hp: 1.00, speed: 47,  gold: 8,  armor: 1, r: 14, leak: 1 },
-  shield:  { name: 'Щитоносец',    hp: 1.55, speed: 38,  gold: 12, armor: 5, r: 15, leak: 1 },
+  shield:  { name: 'Щитоносец',    hp: 1.55, speed: 38,  gold: 12, armor: 3, r: 15, leak: 1 },
   berserk: { name: 'Берсерк',      hp: 0.90, speed: 82,  gold: 10, armor: 0, r: 13, leak: 1 },
   warg:    { name: 'Варг',         hp: 0.50, speed: 100, gold: 7,  armor: 0, r: 12, leak: 1 },
-  boss:    { name: 'Вождь орков',  hp: 8,    speed: 32,  gold: 90, armor: 8, r: 24, leak: 5 }
+  boss:    { name: 'Вождь орков',  hp: 1.8,  speed: 26,  gold: 90, armor: 2, r: 24, leak: 5 }
 };
 
 /* Волны: HP растёт медленно, давление — количеством и типами (как в Kingdom Rush).
@@ -112,7 +113,7 @@ function newGame(seed) {
     seed: (seed >>> 0) || 1, rng: mulberry32((seed >>> 0) || 1),
     gold: TUNE.START_GOLD, lives: TUNE.LIVES, wave: 0, phase: 'build',
     time: 0, buildLeft: BUILD_SECONDS,
-    towers: [], enemies: [], shots: [], parts: [],
+    towers: [], enemies: [], shots: [], parts: [], rings: [],
     queue: [], spawnT: 0, waveHp: 0,
     kills: 0, leaks: 0, nextId: 1, over: null, stars: 0, flash: 0
   };
@@ -279,6 +280,7 @@ function step(G, dt) {
           if (!en.dead && Math.hypot(en.x - s.tx, en.y - s.ty) <= rad) damage(G, en, s.dmg, s);
         }
         burst(G, s.tx, s.ty, 10, '#b98cff');
+        G.rings.push({ x: s.tx, y: s.ty, r: 6, max: s.splash * CELL, life: 0.32, t: 0.32 });
       } else if (tg && !tg.dead) {
         damage(G, tg, s.dmg, s);
       }
@@ -286,6 +288,14 @@ function step(G, dt) {
     }
     s.x += dx / d * move; s.y += dy / d * move;
     if (s.life <= 0) G.shots.splice(k, 1);
+  }
+
+  /* кольца взрывов */
+  for (var r = G.rings.length - 1; r >= 0; r--) {
+    var rn = G.rings[r];
+    rn.life -= dt;
+    rn.r += (rn.max - rn.r) * Math.min(1, dt * 9);
+    if (rn.life <= 0) G.rings.splice(r, 1);
   }
 
   /* частицы */
@@ -401,7 +411,9 @@ function simulate(seed, opt) {
       while (guard++ < 30) {
         var maxT = opt.maxTowers || 12;
         var spot = simSpot(G, skill);
-        var type = G.gold >= TOWERS.mage.cost && mixed % 3 === 2 ? 'mage' : G.gold >= TOWERS.ballista.cost && mixed % 3 === 1 ? 'ballista' : 'archer';
+        var type = G.wave >= 6 && G.gold >= TOWERS.catapult.cost && mixed % 4 === 3 ? 'catapult'
+          : G.gold >= TOWERS.mage.cost && mixed % 3 === 2 ? 'mage'
+          : G.gold >= TOWERS.ballista.cost && mixed % 3 === 1 ? 'ballista' : 'archer';
         var reserve = 1 + (1 - skill) * 0.9;   // новичок копит и строит реже
         if (spot && G.towers.length < maxT && G.gold >= TOWERS[type].cost * reserve) {
           placeTower(G, spot.c, spot.r, type); mixed++; continue;

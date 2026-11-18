@@ -183,6 +183,35 @@ TOWER.mage = Spr(TW, TH, function (g) {
   });
 });
 
+TOWER.catapult = Spr(TW, TH, function (g) {
+  stoneBase(g);
+  /* станина */
+  rr(g, 9, GY - 22, 28, 12, 2);
+  g.fillStyle = lg(g, 0, GY - 22, 0, GY - 10, [C.woodL, C.wood, C.woodD]); g.fill(); outline(g);
+  g.strokeStyle = 'rgba(30,18,8,.45)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(9, GY - 16); g.lineTo(37, GY - 16); g.stroke();
+  /* опоры */
+  g.strokeStyle = C.wood; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(13, GY - 20); g.lineTo(20, GY - 36); g.stroke();
+  g.beginPath(); g.moveTo(33, GY - 20); g.lineTo(26, GY - 36); g.stroke();
+  /* рычаг */
+  g.strokeStyle = '#8a6238'; g.lineWidth = 3.4;
+  g.beginPath(); g.moveTo(12, GY - 34); g.lineTo(33, GY - 44); g.stroke();
+  /* праща с камнем */
+  g.strokeStyle = '#d8c8a4'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(33, GY - 44); g.lineTo(36, GY - 50); g.stroke();
+  g.fillStyle = '#8d9198';
+  g.beginPath(); g.arc(37, GY - 52, 4.4, 0, 6.283); g.fill();
+  g.fillStyle = '#b3b8bf';
+  g.beginPath(); g.arc(35.6, GY - 53.4, 1.6, 0, 6.283); g.fill();
+  outline(g, 'rgba(24,26,30,.6)', 0.9);
+  /* ворот */
+  g.strokeStyle = C.woodD; g.lineWidth = 2;
+  g.beginPath(); g.arc(22, GY - 15, 4, 0, 6.283); g.stroke();
+  g.strokeStyle = C.goldD; g.lineWidth = 1.1;
+  g.beginPath(); g.moveTo(19, GY - 15); g.lineTo(25, GY - 15); g.stroke();
+});
+
 /* ==================== ВРАГИ ==================== */
 /* Один орк: ground point (cx, cy), радиус r, кадр 0/1. */
 function orc(g, cx, cy, r, o, frame) {
@@ -465,6 +494,16 @@ SHOT.ice = Spr(18, 18, function (g) {
     g.stroke();
   }
 });
+SHOT.stone = Spr(18, 18, function (g) {
+  g.fillStyle = lg(g, 2, 2, 16, 16, ['#b9bec6', '#7d848c', '#4e555c']);
+  g.beginPath();
+  g.moveTo(3, 10); g.lineTo(6, 4); g.lineTo(12, 2); g.lineTo(16, 7);
+  g.lineTo(15, 13); g.lineTo(8, 16); g.lineTo(3, 13); g.closePath();
+  g.fill(); outline(g, 'rgba(20,24,28,.7)', 1);
+  g.fillStyle = 'rgba(255,255,255,.35)';
+  g.beginPath(); g.ellipse(8, 6, 2.6, 1.6, -0.4, 0, 6.283); g.fill();
+});
+
 SHOT.orb = Spr(22, 22, function (g) {
   g.fillStyle = rg(g, 11, 11, 1, 11, ['rgba(245,228,255,.98)', 'rgba(185,140,255,.9)', 'rgba(110,60,190,0)']);
   g.beginPath(); g.arc(11, 11, 11, 0, 6.283); g.fill();
