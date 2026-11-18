@@ -22,7 +22,8 @@ var el = {
   tpStats: document.getElementById('tpStats'), up: document.getElementById('btnUp'),
   sell: document.getElementById('btnSell'), ovTitle: document.getElementById('ovTitle'),
   ovText: document.getElementById('ovText'), ovBtn: document.getElementById('ovBtn'),
-  stars: document.getElementById('winStars')
+  stars: document.getElementById('winStars'),
+  bossbar: document.getElementById('bossbar'), bbFill: document.getElementById('bbFill'), bbHp: document.getElementById('bbHp')
 };
 
 /* трекер ошибок для проверки сборки */
@@ -51,12 +52,14 @@ function bake() {
   /* трава плитками */
   for (var c = 0; c < COLS; c++) for (var r = 0; r < ROWS; r++) {
     var t = SPR.TILES[(c * 3 + r * 7) % 3];
+    g.globalAlpha = 0.92;
     g.drawImage(t.c, c * CELL, r * CELL, CELL, CELL);
   }
+  g.globalAlpha = 1;
   /* крупные пятна, чтобы не было шахматки */
   for (var i = 0; i < 60; i++) {
     var px = prand(i * 3.1) * W, py = prand(i * 7.7 + 2) * H, rad = 12 + prand(i * 1.7) * 26;
-    g.fillStyle = i % 2 ? 'rgba(38,62,32,.30)' : 'rgba(96,130,66,.14)';
+    g.fillStyle = i % 2 ? 'rgba(52,110,38,.18)' : 'rgba(255,255,255,.10)';
     g.beginPath(); g.arc(px, py, rad, 0, 6.283); g.fill();
   }
 
@@ -65,15 +68,15 @@ function bake() {
     g.beginPath(); g.moveTo(SIM.PATH[0].x, SIM.PATH[0].y);
     for (var k = 1; k < SIM.PATH.length; k++) g.lineTo(SIM.PATH[k].x, SIM.PATH[k].y);
   }
-  trace(); g.strokeStyle = 'rgba(24,20,12,.55)'; g.lineWidth = 42; g.stroke();
-  trace(); g.strokeStyle = '#3a3020'; g.lineWidth = 38; g.stroke();
-  trace(); g.strokeStyle = '#6d5837'; g.lineWidth = 32; g.stroke();
-  trace(); g.strokeStyle = '#82683f'; g.lineWidth = 24; g.stroke();
+  trace(); g.strokeStyle = 'rgba(120,90,52,.55)'; g.lineWidth = 38; g.stroke();
+  trace(); g.strokeStyle = '#a8804f'; g.lineWidth = 33; g.stroke();
+  trace(); g.strokeStyle = '#c9a06b'; g.lineWidth = 27; g.stroke();
+  trace(); g.strokeStyle = '#ddb884'; g.lineWidth = 19; g.stroke();
 
   /* фактура земли: пятна и борозды */
   for (var s = 6; s < SIM.TOTAL; s += 9) {
     var p = SIM.posAt(s), q = prand(s * 1.7);
-    g.fillStyle = 'rgba(58,44,26,' + (0.10 + q * 0.18) + ')';
+    g.fillStyle = 'rgba(150,116,74,' + (0.10 + q * 0.16) + ')';
     g.beginPath(); g.ellipse(p.x + (q - 0.5) * 24, p.y + (prand(s) - 0.5) * 24, 4 + q * 5, 2.4 + q * 3, q * 3, 0, 6.283); g.fill();
   }
   /* булыжник: редкие камни по дороге, а не сплошная кладка */
@@ -88,17 +91,16 @@ function bake() {
     g.globalAlpha = 1;
   }
   /* травяные пучки по обочинам — мягкая кромка дороги */
-  for (var s3 = 4; s3 < SIM.TOTAL; s3 += 6) {
+  for (var s3 = 6; s3 < SIM.TOTAL; s3 += 13) {
     var a1 = SIM.posAt(s3), a2 = SIM.posAt(s3 + 5);
     var ddx = a2.x - a1.x, ddy = a2.y - a1.y, LL = Math.hypot(ddx, ddy) || 1;
     var px2 = -ddy / LL, py2 = ddx / LL;
-    [-1, 1].forEach(function (side) {
-      var q3 = prand(s3 * 1.3 + side * 3.7);
-      var bx = a1.x + px2 * side * (16 + q3 * 4), by = a1.y + py2 * side * (16 + q3 * 4);
-      g.fillStyle = 'rgba(' + (q3 > 0.5 ? '76,112,54,' : '46,74,38,') + (0.55 + q3 * 0.35) + ')';
-      g.fillRect(bx, by - 3, 1.5, 3 + q3 * 3);
-      g.fillRect(bx + 2.2, by - 1.5, 1.2, 2.5 + q3 * 2);
-    });
+    var q3 = prand(s3 * 1.3);
+    var side = q3 > 0.5 ? 1 : -1;
+    var bx = a1.x + px2 * side * (17 + q3 * 5), by = a1.y + py2 * side * (17 + q3 * 5);
+    g.fillStyle = 'rgba(' + (q3 > 0.6 ? '120,192,74,' : '88,168,56,') + (0.35 + q3 * 0.25) + ')';
+    g.fillRect(bx, by - 2.4, 1.4, 2.6 + q3 * 2.2);
+    if (q3 > 0.45) g.fillRect(bx + 2, by - 1.2, 1.1, 2 + q3 * 1.6);
   }
 
   /* колеи от телег вдоль дороги */
@@ -107,7 +109,7 @@ function bake() {
     var ex = b2.x - b1.x, ey = b2.y - b1.y, EL = Math.hypot(ex, ey) || 1;
     var mx = -ey / EL, my = ex / EL;
     [-7.5, 7.5].forEach(function (side) {
-      g.strokeStyle = 'rgba(56,40,22,.30)'; g.lineWidth = 2.6; g.lineCap = 'round';
+      g.strokeStyle = 'rgba(190,150,100,.14)'; g.lineWidth = 2.2; g.lineCap = 'round';
       g.beginPath();
       g.moveTo(b1.x + mx * side, b1.y + my * side);
       g.lineTo(b2.x + mx * side, b2.y + my * side);
@@ -129,7 +131,7 @@ function bake() {
   /* виньетка */
   var vg = g.createRadialGradient(W / 2, H * 0.45, H * 0.3, W / 2, H * 0.45, H * 0.8);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
-  vg.addColorStop(1, 'rgba(8,12,6,.42)');
+  vg.addColorStop(1, 'rgba(20,40,14,.20)');
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
 
   FIELD = b;
@@ -177,12 +179,8 @@ function drawEnemy(g, e) {
     g.beginPath(); g.ellipse(e.x, e.y - e.r * 0.7, e.r * 1.05, e.r * 1.35, 0, 0, 6.283); g.fill();
     g.restore();
   }
-  hpBar(g, e, e.y - e.r * 2.8);
-  if (e.type === 'boss') {
-    g.fillStyle = '#f6dfa0'; g.font = 'bold 10px Georgia'; g.textAlign = 'center';
-    g.fillText(e.armor ? 'ВОЖДЬ · броня ' + e.armor : 'ВОЖДЬ', e.x, e.y - e.r * 3.15);
-    g.textAlign = 'left';
-  }
+  /* у босса своя полоса сверху экрана — над ним ничего не рисуем */
+  if (e.type !== 'boss') hpBar(g, e, e.y - e.r * 2.8);
 }
 
 /* ================= сцена ================= */
@@ -333,6 +331,17 @@ function updateUI() {
   } else {
     el.waveBtn.textContent = G.phase === 'win' ? 'Замок выстоял' : 'Замок пал';
     el.waveBtn.classList.add('wait');
+  }
+
+  /* полоса босса — всегда на экране, ничего не уезжает за край */
+  var boss = null;
+  for (var b = 0; b < G.enemies.length; b++) if (G.enemies[b].type === 'boss') boss = G.enemies[b];
+  if (boss) {
+    el.bossbar.classList.remove('hidden');
+    el.bbFill.style.width = Math.max(0, boss.hp / boss.maxHp * 100).toFixed(1) + '%';
+    el.bbHp.textContent = Math.ceil(Math.max(0, boss.hp)) + ' / ' + boss.maxHp;
+  } else {
+    el.bossbar.classList.add('hidden');
   }
 
   var t = null;

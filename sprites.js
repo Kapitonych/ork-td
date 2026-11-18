@@ -6,16 +6,16 @@
 var S = 2;
 
 var C = {
-  grass1: '#3d5a33', grass2: '#35502c', grass3: '#466639',
-  dirt: '#7a6242', dirtDark: '#5d4a30', dirtLight: '#94795a',
-  stone: '#7c8073', stoneD: '#4d5147', stoneL: '#9aa093',
-  wood: '#7a5430', woodD: '#4e3419', woodL: '#9a6c3d',
-  roof: '#b04a33', roofD: '#7a2b1c', roofL: '#cf6446',
-  iron: '#98a0a8', ironD: '#5b646d',
-  leather: '#5a3d22', leatherL: '#7a5530',
-  skin: '#6f9a45', skinD: '#4a6d2c', skinL: '#8cb95c',
-  bone: '#efe6cf', gold: '#e0b64e', goldD: '#8a6c22',
-  ice: '#b8e8ff', iceD: '#5aa6cf', magic: '#b98cff', magicD: '#6a3fb0'
+  grass1: '#7cc44f', grass2: '#78c04c', grass3: '#80c852',
+  dirt: '#c9a06b', dirtDark: '#a8804f', dirtLight: '#ddb884',
+  stone: '#c3c9d1', stoneD: '#8e96a1', stoneL: '#e6ebf0',
+  wood: '#c98b4b', woodD: '#8f5c2e', woodL: '#e2a968',
+  roof: '#e8563f', roofD: '#b93a28', roofL: '#f8836b',
+  iron: '#c3c9d1', ironD: '#7c848f',
+  leather: '#b07b4a', leatherL: '#cf9a63',
+  skin: '#8ecf57', skinD: '#4f9433', skinL: '#b3e87c',
+  bone: '#fff3d6', gold: '#ffcf3f', goldD: '#c99a1d',
+  ice: '#c8ecff', iceD: '#5fb8e0', magic: '#c08bff', magicD: '#7a4fd0'
 };
 
 function Spr(w, h, draw) {
@@ -91,14 +91,14 @@ TOWER.archer = Spr(TW, TH, function (g) {
   g.strokeStyle = C.woodD; g.lineWidth = 1.4;
   g.beginPath(); g.arc(27, GY - 38, 4.4, -1.1, 1.1); g.stroke();
   /* крыша */
-  g.beginPath(); g.moveTo(GX, 6); g.lineTo(GX + 20, GY - 38); g.lineTo(GX - 20, GY - 38); g.closePath();
+  g.beginPath(); g.moveTo(GX, 4); g.lineTo(GX + 16, GY - 40); g.lineTo(GX - 16, GY - 40); g.closePath();
   g.fillStyle = lg(g, 0, 6, 0, GY - 38, [C.roofL, C.roof, C.roofD]); g.fill();
   g.strokeStyle = 'rgba(50,14,8,.7)'; g.lineWidth = 1.2; g.stroke();
   /* черепица */
   g.strokeStyle = 'rgba(70,20,12,.32)'; g.lineWidth = 0.9;
-  for (var r = 12; r < GY - 39; r += 4.6) {
-    var k = (r - 6) / (GY - 44);
-    g.beginPath(); g.moveTo(GX - k * 20, r); g.lineTo(GX + k * 20, r); g.stroke();
+  for (var r = 12; r < GY - 41; r += 4.6) {
+    var k = (r - 6) / (GY - 46);
+    g.beginPath(); g.moveTo(GX - k * 16, r); g.lineTo(GX + k * 16, r); g.stroke();
   }
   /* конёк и флаг */
   g.fillStyle = C.gold; g.beginPath(); g.arc(GX, 6, 2.1, 0, 6.283); g.fill();
@@ -445,21 +445,21 @@ function enemySheet(r, draw) {
 }
 
 var ENEMY = {
-  goblin: enemySheet(12, function (g, cx, cy, r, f) {
-    orc(g, cx, cy, r, { skin: '#79a34c', skinD: '#4f7230', skinL: '#95bd63', armor: '#4a3a24', hood: '#3f5230', dagger: true, axes: false }, f);
+  goblin: enemySheet(11, function (g, cx, cy, r, f) {
+    orc(g, cx, cy, r, { skin: '#95d15e', skinD: '#5aa036', skinL: '#c0ea88', armor: '#a9743f', hood: '#4f8a3a', dagger: true, axes: false }, f);
   }),
-  orc: enemySheet(16, function (g, cx, cy, r, f) {
+  orc: enemySheet(14, function (g, cx, cy, r, f) {
     orc(g, cx, cy, r, { skin: C.skin, skinD: C.skinD, skinL: C.skinL, armor: C.leather, helm: true, axes: true }, f);
   }),
-  shield: enemySheet(17, function (g, cx, cy, r, f) {
-    orc(g, cx, cy, r, { skin: '#6b8f46', skinD: '#43632c', skinL: '#8ab55c', armor: '#4f5a3a', helm: true, shield: true, axes: false }, f);
+  shield: enemySheet(15, function (g, cx, cy, r, f) {
+    orc(g, cx, cy, r, { skin: '#8ecf57', skinD: '#4f9433', skinL: '#b3e87c', armor: '#7f8a5e', helm: true, shield: true, axes: false }, f);
   }),
-  berserk: enemySheet(15, function (g, cx, cy, r, f) {
-    orc(g, cx, cy, r, { skin: '#a85433', skinD: '#7c3620', skinL: '#c97248', armor: false, axes: true, hood: '#7c2418' }, f);
+  berserk: enemySheet(13, function (g, cx, cy, r, f) {
+    orc(g, cx, cy, r, { skin: '#e0813f', skinD: '#b0531f', skinL: '#f2a86a', armor: false, axes: true, hood: '#d9482c' }, f);
   }),
-  warg: enemySheet(18, function (g, cx, cy, r, f) { warg(g, cx, cy, r, f); }),
-  boss: enemySheet(26, function (g, cx, cy, r, f) {
-    orc(g, cx, cy, r, { skin: '#8a4a34', skinD: '#5e2c1c', skinL: '#a86446', armor: '#4a2a1c', helm: true, horns: true, cape: '#7d1f18', axes: true }, f);
+  warg: enemySheet(16, function (g, cx, cy, r, f) { warg(g, cx, cy, r, f); }),
+  boss: enemySheet(23, function (g, cx, cy, r, f) {
+    orc(g, cx, cy, r, { skin: '#d0603c', skinD: '#98361d', skinL: '#f08d63', armor: '#8a4a2a', helm: true, horns: true, cape: '#c9301f', axes: true }, f);
   })
 };
 
@@ -519,7 +519,7 @@ DECORSPR.oak = Spr(52, 62, function (g, w, h) {
   g.beginPath(); g.moveTo(22, 58); g.lineTo(24, 30); g.lineTo(28, 30); g.lineTo(30, 58); g.closePath(); g.fill();
   var blobs = [[26, 28, 17], [15, 34, 12], [37, 34, 12], [26, 15, 13]];
   blobs.forEach(function (b) {
-    g.fillStyle = rg(g, b[0] - b[2] * 0.35, b[1] - b[2] * 0.4, 1, b[2], ['#4f7a3c', '#2f5427', '#1e3a19']);
+    g.fillStyle = rg(g, b[0] - b[2] * 0.35, b[1] - b[2] * 0.4, 1, b[2], ['#6fbb4a', '#3f8a34', '#2a6325']);
     g.beginPath(); g.arc(b[0], b[1], b[2], 0, 6.283); g.fill();
   });
   g.fillStyle = 'rgba(150,205,120,.25)';
@@ -531,21 +531,21 @@ DECORSPR.pine = Spr(44, 64, function (g) {
   for (var i = 0; i < 3; i++) {
     var y = 12 + i * 14, wd = 11 + i * 6;
     g.beginPath(); g.moveTo(22, y - 6); g.lineTo(22 + wd, y + 12); g.lineTo(22 - wd, y + 12); g.closePath();
-    g.fillStyle = lg(g, 0, y - 6, 0, y + 12, ['#3f6b3a', '#254a24']); g.fill();
+    g.fillStyle = lg(g, 0, y - 6, 0, y + 12, ['#5aa845', '#2f6b2d']); g.fill();
     g.strokeStyle = 'rgba(16,30,14,.4)'; g.lineWidth = 0.9; g.stroke();
   }
 });
 DECORSPR.rock = Spr(40, 32, function (g) {
   shadow(g, 20, 27, 15, 5, 0.3);
   g.beginPath(); g.moveTo(4, 25); g.lineTo(9, 9); g.lineTo(20, 4); g.lineTo(32, 10); g.lineTo(36, 24); g.lineTo(30, 28); g.lineTo(9, 28); g.closePath();
-  g.fillStyle = lg(g, 0, 4, 0, 28, ['#8d9187', '#666b60', '#454a3f']); g.fill(); outline(g, 'rgba(20,24,16,.5)', 1);
+  g.fillStyle = lg(g, 0, 4, 0, 28, ['#d5dae0', '#a2a9b2', '#767e88']); g.fill(); outline(g, 'rgba(60,68,78,.5)', 1);
   g.fillStyle = 'rgba(200,210,190,.35)';
   g.beginPath(); g.moveTo(9, 9); g.lineTo(20, 4); g.lineTo(23, 12); g.lineTo(12, 15); g.closePath(); g.fill();
 });
 DECORSPR.bush = Spr(32, 24, function (g) {
   shadow(g, 16, 21, 12, 3.6, 0.28);
   [[11, 15, 8], [21, 15, 8], [16, 10, 8]].forEach(function (b) {
-    g.fillStyle = rg(g, b[0] - 2, b[1] - 3, 1, b[2], ['#4e7a3a', '#33561f', '#22400f']);
+    g.fillStyle = rg(g, b[0] - 2, b[1] - 3, 1, b[2], ['#79c455', '#468f30', '#2f7023']);
     g.beginPath(); g.arc(b[0], b[1], b[2], 0, 6.283); g.fill();
   });
 });
@@ -623,17 +623,17 @@ var TILES = [0, 1, 2].map(function (k) {
   return Spr(40, 40, function (g) {
     g.fillStyle = k === 0 ? C.grass1 : k === 1 ? C.grass2 : C.grass3;
     g.fillRect(0, 0, 40, 40);
-    for (var i = 0; i < 26; i++) {
+    /* пара крупных пятен тона — плоско, как у Kenney */
+    for (var i = 0; i < 2; i++) {
       var x = prand(k * 91 + i * 7) * 40, y = prand(k * 37 + i * 13) * 40;
-      g.fillStyle = 'rgba(' + (i % 3 ? '26,42,20,' : '86,116,58,') + (0.25 + prand(i) * 0.35) + ')';
-      g.fillRect(x, y, 1.6, 2.6 + prand(i * 3) * 2.4);
+      g.fillStyle = i ? 'rgba(255,255,255,.07)' : 'rgba(40,90,30,.07)';
+      g.beginPath(); g.arc(x, y, 9 + prand(i) * 7, 0, 6.283); g.fill();
     }
-    /* редкие цветы */
-    if (k === 2) {
-      [[9, 30], [31, 12]].forEach(function (p) {
-        g.fillStyle = '#d9d06a';
-        g.beginPath(); g.arc(p[0], p[1], 1.3, 0, 6.283); g.fill();
-      });
+    /* редкие травинки-штрихи */
+    for (var j = 0; j < 5; j++) {
+      var tx = prand(k * 17 + j * 3) * 38 + 1, ty = prand(k * 29 + j * 5) * 36 + 2;
+      g.fillStyle = 'rgba(52,104,32,.22)';
+      g.fillRect(tx, ty, 1.4, 3.2);
     }
   });
 });

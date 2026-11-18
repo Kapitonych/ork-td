@@ -14,7 +14,7 @@ var TUNE = {
 };
 
 /* ---------- путь ---------- */
-var WAY = [[-1,1],[8,1],[8,5],[1,5],[1,9],[8,9],[8,13],[4,13],[4,13.55]];
+var WAY = [[-1,2],[8,2],[8,6],[1,6],[1,10],[8,10],[8,13],[4,13],[4,13.55]];
 function PX(c, r) { return { x: (c + 0.5) * CELL, y: (r + 0.5) * CELL }; }
 var PATH = WAY.map(function (p) { return PX(p[0], p[1]); });
 var SEGS = [], TOTAL = 0;
@@ -166,7 +166,7 @@ function spawn(G, item) {
     maxHp: Math.round((item.hp || G.waveHp) * d.hp), hp: Math.round((item.hp || G.waveHp) * d.hp),
     speed: d.speed, armor: d.armor, r: d.r, leak: d.leak,
     gold: Math.round(d.gold * (item.goldK || 1)),
-    s: 0, lane: (G.rng() - 0.5) * 14, slowT: 0, slowMul: 0,
+    s: 0, lane: (G.rng() - 0.5) * 22, slowT: 0, slowMul: 0,
     x: PATH[0].x, y: PATH[0].y, dead: false, wob: G.rng() * 6.28
   };
   place(e);
