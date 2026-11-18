@@ -474,8 +474,8 @@ cv.addEventListener('pointerdown', function (ev) {
     if (!res.ok) { toast(res.why); Platform.haptic('error'); }
     else {
       Platform.haptic('medium');
-      UI.sel = res.tower.id;
-      if (G.gold < SIM.TOWERS[UI.placing].cost) UI.placing = null;
+      UI.sel = null;                       // пока строим — панель не мешает
+      if (G.gold < SIM.TOWERS[UI.placing].cost) { UI.placing = null; toast('Золото кончилось — ждём волну'); }
     }
     UI.ghost = null;
   } else {
