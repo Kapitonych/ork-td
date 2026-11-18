@@ -293,7 +293,7 @@ function buildRail() {
       else {
         if (G.gold < sp.cost) { toast('Не хватает золота: нужно ' + sp.cost); Platform.haptic('error'); return; }
         UI.placing = key; UI.sel = null;
-        toast(sp.name + ' · ' + sp.desc + ' — тапни по траве рядом с тропой');
+        toast(sp.desc + ' · тапни по траве у тропы');
       }
       updateUI();
     });
@@ -384,6 +384,12 @@ cv.addEventListener('pointerdown', function (ev) {
   var cell = cellOf(ev);
   if (cell.c < 0 || cell.c >= COLS || cell.r < 0 || cell.r >= ROWS) return;
   if (UI.placing) {
+    /* тап по уже стоящей башне — это выбор её, а не попытка построить поверх */
+    var existing = SIM.towerAt(G, cell.c, cell.r);
+    if (existing) {
+      UI.sel = existing.id; UI.placing = null; UI.ghost = null;
+      Platform.haptic('light'); updateUI(); render(); return;
+    }
     var res = SIM.placeTower(G, cell.c, cell.r, UI.placing);
     if (!res.ok) { toast(res.why); Platform.haptic('error'); }
     else {
