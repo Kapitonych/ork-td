@@ -144,7 +144,7 @@ function bake() {
 }
 
 /* ================= объекты ================= */
-var TSC = 0.52, ESC = 0.45;      /* масштабы спрайтов: карта крупная, фигурки мелкие */
+var TSC = 0.62, ESC = 0.52;      /* масштабы спрайтов: под размер клетки */
 
 function drawTower(g, t, ghost) {
   var spr = SPR.TOWER[t.type];
@@ -221,6 +221,15 @@ function render() {
     ctx.fillStyle = 'rgba(224,182,78,.09)'; ctx.fill();
     ctx.setLineDash([5, 5]); ctx.lineWidth = 1.3; ctx.strokeStyle = 'rgba(224,182,78,.5)'; ctx.stroke();
     ctx.restore();
+  }
+
+  /* все свободные места под башни — видны во время постановки */
+  if (UI.placing) {
+    for (var si = 0; si < SIM.SPOTS.length; si++) {
+      var sp0 = SIM.SPOTS[si];
+      if (!SIM.cellFree(G, sp0.c, sp0.r)) continue;
+      diamond(ctx, sp0.c, sp0.r, 'rgba(255,255,255,.07)', 'rgba(196,236,150,.30)');
+    }
   }
 
   /* подсветка клетки при постановке */
@@ -444,10 +453,47 @@ function cellOf(ev) {
   var p = toField(ev.clientX, ev.clientY);
   return { c: Math.floor(p.x / CELL), r: Math.floor(p.y / CELL) };
 }
+/* тап «прощает» промах: берём ближайшую свободную клетку в радиусе */
+function nearestFreeCell(px, py, rad) {
+  var best = null, bd = 1e9;
+  for (var c = 0; c < COLS; c++) for (var r = 0; r < ROWS; r++) {
+    if (!SIM.cellFree(G, c, r)) continue;
+    var cc = cellCenter(c, r), d = Math.hypot(cc.x - px, cc.y - py);
+    if (d < bd) { bd = d; best = { c: c, r: r }; }
+  }
+  return (best && bd <= rad * CELL) ? best : null;
+}
+function nearestTower(px, py, rad) {
+  var best = null, bd = 1e9;
+  for (var i = 0; i < G.towers.length; i++) {
+    var t = G.towers[i], d = Math.hypot(t.x - px, t.y - py);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return (best && bd <= rad * CELL) ? best : null;
+}
 
 cv.addEventListener('pointerdown', function (ev) {
   ev.preventDefault();
+  var f = toField(ev.clientX, ev.clientY);
   var cell = cellOf(ev);
+  var inMap = cell.c >= 0 && cell.c < COLS && cell.r >= 0 && cell.r < ROWS;
+  if (UI.placing) {
+    var ofree = inMap && SIM.cellFree(G, cell.c, cell.r);
+    var snap = ofree ? null : nearestFreeCell(f.x, f.y, 2.4);
+    if (snap) cell = snap;
+    else if (!ofree) {
+      var tw0 = nearestTower(f.x, f.y, 1.6);
+      if (tw0) { UI.sel = tw0.id; UI.placing = null; UI.ghost = null; Platform.haptic('light'); updateUI(); render(); return; }
+      toast('Тапни ближе к тропе — там встанет башня');
+      Platform.haptic('error'); return;
+    }
+  }
+  if (!inMap && !UI.placing) {
+    var tw1 = nearestTower(f.x, f.y, 1.6);
+    UI.sel = tw1 ? tw1.id : null;
+    if (tw1) Platform.haptic('light');
+    updateUI(); render(); return;
+  }
   if (cell.c < 0 || cell.c >= COLS || cell.r < 0 || cell.r >= ROWS) return;
   if (UI.placing) {
     var existing = SIM.towerAt(G, cell.c, cell.r);
@@ -473,7 +519,9 @@ cv.addEventListener('pointerdown', function (ev) {
 
 cv.addEventListener('pointermove', function (ev) {
   if (!UI.placing) { if (UI.ghost) { UI.ghost = null; render(); } return; }
-  var cell = cellOf(ev);
+  var f = toField(ev.clientX, ev.clientY), cell = cellOf(ev);
+  var ok = cell.c >= 0 && cell.c < COLS && cell.r >= 0 && cell.r < ROWS && SIM.cellFree(G, cell.c, cell.r);
+  if (!ok) { var sn = nearestFreeCell(f.x, f.y, 2.4); if (sn) cell = sn; }
   if (cell.c >= 0 && cell.c < COLS && cell.r >= 0 && cell.r < ROWS) UI.ghost = cell;
   render();
 });

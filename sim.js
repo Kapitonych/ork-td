@@ -3,18 +3,18 @@
 (function (root) {
 'use strict';
 
-var CELL = 40, COLS = 8, ROWS = 12;
+var CELL = 40, COLS = 7, ROWS = 10;
 var START_GOLD = 200, LIVES = 20, WAVES = 10;
 var BUILD_SECONDS = 12;
 /* числа, которые крутятся при балансировке */
 var TUNE = {
-  WAVE_DIFF: 1.0, START_GOLD: 300, WAVE_BONUS: 45, GOLDK: 0.12, LIVES: 25,
+  WAVE_DIFF: 1.12, START_GOLD: 300, WAVE_BONUS: 45, GOLDK: 0.12, LIVES: 25,
   /* множитель HP по волнам: первые — обучающие, к десятой давление растёт */
   SHAPE: [1,1,1.1,1.3,1.55,1.85,2.2,2.7,3.3,4.0]
 };
 
 /* ---------- путь ---------- */
-var WAY = [[0,1],[7,1],[7,4],[1,4],[1,7],[7,7],[7,10],[4,10],[4,11.2]];
+var WAY = [[0,1],[6,1],[6,4],[1,4],[1,7],[6,7],[2,7],[2,8.6]];
 function PX(c, r) { return { x: (c + 0.5) * CELL, y: (r + 0.5) * CELL }; }
 var PATH = WAY.map(function (p) { return PX(p[0], p[1]); });
 var SEGS = [], TOTAL = 0;
@@ -45,7 +45,7 @@ var PATH_CELLS = {};
     if (c >= 0 && c < COLS && r >= 0 && r < ROWS) PATH_CELLS[c + ',' + r] = 1;
   }
 })();
-var DECOR = [[6,3],[2,6],[5,5],[3,9],[6,11],[2,10]];
+var DECOR = [[4,0],[2,2],[5,3],[0,5],[6,9],[4,8]];
 var BLOCK = {};
 DECOR.forEach(function (d) { BLOCK[d[0] + ',' + d[1]] = 1; });
 /* пятно замка внизу строить нельзя */
