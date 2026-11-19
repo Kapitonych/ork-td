@@ -5,10 +5,8 @@
 var CELL = SIM.CELL, COLS = SIM.COLS, ROWS = SIM.ROWS;
 var W = COLS * CELL, H = ROWS * CELL;         // виртуальный размер поля (не экранный)
 var VW = 400, VH = 640;                        // холст = площадь поля (логические px)
-var SPAN = COLS + ROWS;
-/* RATIO — насколько «круто» смотрим: 0.5 = классическая изометрия 2:1, 1 = клетки-ромбы ~45° */
-var RATIO = (function () { var m = location.search.match(/iso=([\d.]+)/); return m ? parseFloat(m[1]) : 1.45; })();
-var TW = 20, TH = TW * RATIO;                  // полуоси ромба
+var K = 1;                                     // пикселей на мировую единицу
+var U = 40;                                    // сторона клетки на экране (K * CELL)
 
 var cv = document.getElementById('cv');
 var DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -43,16 +41,10 @@ var ORDER = Object.keys(SIM.TOWERS).sort(function (a, b) { return SIM.TOWERS[a].
 
 function prand(i) { var x = Math.sin(i * 127.1 + 0.5) * 43758.5453; return x - Math.floor(x); }
 
-/* ================= изопроекция ================= */
-/* центр ромба: карта смещена, поэтому центрируем по её середине */
+/* ================= проекция: ровная сетка ================= */
 var OX = 0, OY = 0;
-function iso(wx, wy) {
-  return { x: OX + (wx - wy) * (TW / CELL), y: OY + (wx + wy) * (TH / CELL) };
-}
-function unIso(sx, sy) {
-  var u = (sx - OX) / (TW / CELL), v = (sy - OY) / (TH / CELL);
-  return { x: (u + v) / 2, y: (v - u) / 2 };
-}
+function iso(wx, wy) { return { x: OX + wx * K, y: OY + wy * K }; }
+function unIso(sx, sy) { return { x: (sx - OX) / K, y: (sy - OY) / K }; }
 function cellCenter(c, r) { return { x: (c + 0.5) * CELL, y: (r + 0.5) * CELL }; }
 
 /* ================= поле ================= */
@@ -107,8 +99,8 @@ function bake() {
     var q = iso(SIM.PATH[k].x, SIM.PATH[k].y);
     g.lineTo(q.x, q.y);
   }
-  g.strokeStyle = 'rgba(140,104,58,.55)'; g.lineWidth = TW * 1.15; g.stroke();
-  g.strokeStyle = '#c9a06b'; g.lineWidth = TW * 0.96; g.stroke();
+  g.strokeStyle = 'rgba(140,104,58,.55)'; g.lineWidth = U * 0.58; g.stroke();
+  g.strokeStyle = '#c9a06b'; g.lineWidth = U * 0.48; g.stroke();
   g.restore();
 
   /* декор по всей поляне (за пределами клеток — просто украшение) */
@@ -130,7 +122,7 @@ function bake() {
 
   /* замок у конца тропы */
   var end = iso(SIM.PATH[SIM.PATH.length - 1].x, SIM.PATH[SIM.PATH.length - 1].y);
-  SPR.put(g, SPR.CASTLE, end.x, end.y + TH * 1.1, 0.5);
+  SPR.put(g, SPR.CASTLE, end.x, end.y + U * 0.55, 0.52);
 
   /* виньетка */
   var vg = g.createRadialGradient(VW / 2, VH * 0.5, VH * 0.25, VW / 2, VH * 0.5, VH * 0.75);
@@ -142,7 +134,7 @@ function bake() {
 }
 
 /* ================= объекты ================= */
-var TSC = 0.62, ESC = 0.52;      /* масштабы спрайтов: под размер клетки */
+var TSC = 0.95, ESC = 0.72;      /* масштабы спрайтов: под размер клетки */
 
 function drawTower(g, t, ghost) {
   var spr = SPR.TOWER[t.type];
@@ -150,14 +142,14 @@ function drawTower(g, t, ghost) {
   var bob = t.recoil ? t.recoil * 1.4 : 0;
   var p = iso(t.x, t.y);
   g.fillStyle = 'rgba(0,0,0,.22)';
-  g.beginPath(); g.ellipse(p.x, p.y + TH * 0.25, TW * 0.7, TH * 0.55, 0, 0, 6.283); g.fill();
+  g.beginPath(); g.ellipse(p.x, p.y + U * 0.13, U * 0.36, U * 0.14, 0, 0, 6.283); g.fill();
   g.save();
   if (ghost) g.globalAlpha = 0.55;
-  SPR.put(g, spr, p.x, p.y + TH * 0.3 + bob, TSC);
+  SPR.put(g, spr, p.x, p.y + U * 0.16 + bob, TSC);
   g.restore();
   var lvl = t.lvl || 1;
   for (var l = 0; l < lvl; l++) {
-    var lx = p.x - (lvl - 1) * 2.6 + l * 5.2, ly = p.y + TH * 0.85;
+    var lx = p.x - (lvl - 1) * 2.8 + l * 5.6, ly = p.y + U * 0.42;
     g.fillStyle = '#f0cf78';
     g.beginPath(); g.moveTo(lx, ly - 2); g.lineTo(lx + 1.7, ly); g.lineTo(lx, ly + 2); g.lineTo(lx - 1.7, ly); g.closePath(); g.fill();
   }
@@ -177,8 +169,8 @@ function drawEnemy(g, e) {
   var fr = (Math.floor(e.wob * 0.35) % 2 + 2) % 2;
   var p = iso(e.x, e.y);
   g.fillStyle = 'rgba(0,0,0,.24)';
-  g.beginPath(); g.ellipse(p.x, p.y + TH * 0.2, TW * 0.42, TH * 0.4, 0, 0, 6.283); g.fill();
-  SPR.put(g, sheet[fr], p.x, p.y + TH * 0.25, ESC);
+  g.beginPath(); g.ellipse(p.x, p.y + U * 0.10, U * 0.21, U * 0.09, 0, 0, 6.283); g.fill();
+  SPR.put(g, sheet[fr], p.x, p.y + U * 0.12, ESC);
   if (e.slowT > 0) {
     g.save(); g.globalAlpha = 0.4; g.fillStyle = 'rgba(150,220,255,.6)';
     g.beginPath(); g.ellipse(p.x, p.y - e.r * ESC, e.r * ESC * 1.1, e.r * ESC * 1.5, 0, 0, 6.283); g.fill();
@@ -200,6 +192,19 @@ function drawEnemy(g, e) {
 }
 
 /* ================= сцена ================= */
+/* ломаная молния между двумя точками */
+function boltPath(g, x1, y1, x2, y2) {
+  var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+  var nx = -dy / len, ny = dx / len, seg = Math.max(3, Math.round(len / 22));
+  g.beginPath(); g.moveTo(x1, y1);
+  for (var i = 1; i < seg; i++) {
+    var t = i / seg, j = (Math.sin(i * 12.9898 + x1 * 0.7) * 43758.5453) % 1;
+    var off = (j - Math.round(j)) * 9;
+    g.lineTo(x1 + dx * t + nx * off, y1 + dy * t + ny * off);
+  }
+  g.lineTo(x2, y2);
+}
+
 function render() {
   ctx.clearRect(0, 0, VW, VH);
   if (FIELD) ctx.drawImage(FIELD, 0, 0, VW, VH);
@@ -213,7 +218,7 @@ function render() {
     for (var i = 0; i < G.towers.length; i++) if (G.towers[i].id === UI.sel) { showR = G.towers[i].st.range; rp = iso(G.towers[i].x, G.towers[i].y); }
   }
   if (showR != null && rp) {
-    var rx = showR * CELL * (TW / CELL) * 1.414, ry = showR * CELL * (TH / CELL) * 1.414;
+    var rx = showR * U, ry = showR * U;
     ctx.save();
     ctx.beginPath(); ctx.ellipse(rp.x, rp.y, rx, ry, 0, 0, 6.283);
     ctx.fillStyle = 'rgba(224,182,78,.09)'; ctx.fill();
@@ -261,6 +266,23 @@ function render() {
       ctx.globalAlpha = 1;
       continue;
     }
+    if (sh.type === 'zap') {
+      var o = iso(sh.ox != null ? sh.ox : sh.x, sh.oy != null ? sh.oy : sh.y);
+      var e2 = iso(sh.x, sh.y);
+      var a2 = Math.max(0, Math.min(1, sh.life * 4));
+      ctx.save();
+      ctx.globalAlpha = a2;
+      ctx.strokeStyle = 'rgba(150,215,255,.55)'; ctx.lineWidth = 4.5; ctx.lineJoin = 'round';
+      boltPath(ctx, o.x, o.y, e2.x, e2.y);
+      ctx.stroke();
+      ctx.strokeStyle = '#eaf6ff'; ctx.lineWidth = 1.6;
+      boltPath(ctx, o.x, o.y, e2.x, e2.y);
+      ctx.stroke();
+      ctx.globalAlpha = a2 * 0.9; ctx.fillStyle = '#dff2ff';
+      ctx.beginPath(); ctx.arc(e2.x, e2.y, 3.2, 0, 6.283); ctx.fill();
+      ctx.restore();
+      continue;
+    }
     var t2 = iso(sh.tx, sh.ty);
     var ang = Math.atan2(t2.y - sp.y, t2.x - sp.x);
     SPR.shot(ctx, SPR.SHOT[sh.type] || SPR.SHOT.arrow, sp.x, sp.y, ang, 0.95);
@@ -272,7 +294,7 @@ function render() {
     var cp = iso(rn.x, rn.y);
     ctx.strokeStyle = 'rgba(255,196,110,' + (a * 0.7) + ')';
     ctx.lineWidth = 2 * a + 0.6;
-    ctx.beginPath(); ctx.ellipse(cp.x, cp.y, rn.r * (TW / CELL) * 1.414, rn.r * (TH / CELL) * 1.414, 0, 0, 6.283); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cp.x, cp.y, rn.r * K, 0, 6.283); ctx.stroke();
   }
 
   /* частицы */
@@ -586,11 +608,10 @@ function fit() {
   VW = Math.round(w); VH = Math.round(h);
   cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  TW = (VW - 8) / SPAN; TH = TW * RATIO;
-  var maxTH = (VH - 60) / SPAN;               /* не вылезаем за поле по высоте */
-  if (TH > maxTH) { TH = maxTH; TW = TH / RATIO; }
-  OX = VW / 2 - ((W - H) / 2) * (TW / CELL);
-  OY = VH / 2 - ((W + H) / 2) * (TH / CELL);
+  K = Math.min((VW - 8) / W, (VH - 56) / H);
+  U = K * CELL;
+  OX = (VW - W * K) / 2;
+  OY = (VH - H * K) / 2 + 4;
   bake();
 }
 var fitT = 0;

@@ -160,26 +160,27 @@ TOWER.frost = Spr(TW, TH, function (g) {
   });
 });
 
-TOWER.mage = Spr(TW, TH, function (g) {
+TOWER.tesla = Spr(TW, TH, function (g) {
   stoneBase(g);
-  /* колонна */
-  rr(g, 15, GY - 30, 16, 20, 3);
-  g.fillStyle = lg(g, 15, 0, 31, 0, ['#5a4a6e', '#3d3350', '#2b2440']); g.fill(); outline(g);
-  /* руны */
-  g.strokeStyle = 'rgba(200,160,255,.85)'; g.lineWidth = 1.2;
-  g.beginPath(); g.arc(GX, GY - 22, 3.2, 0, 6.283); g.stroke();
-  g.beginPath(); g.moveTo(GX, GY - 26.5); g.lineTo(GX, GY - 17.5); g.stroke();
-  /* орб */
-  g.fillStyle = rg(g, GX - 2, GY - 40, 1, 16, ['rgba(240,215,255,.95)', 'rgba(185,140,255,.85)', 'rgba(120,70,200,0)']);
-  g.beginPath(); g.arc(GX, GY - 38, 16, 0, 6.283); g.fill();
-  g.fillStyle = '#e6d0ff';
-  g.beginPath(); g.arc(GX, GY - 38, 6, 0, 6.283); g.fill();
-  g.fillStyle = '#ffffff';
-  g.beginPath(); g.arc(GX - 2, GY - 40, 2.2, 0, 6.283); g.fill();
-  /* осколки вокруг */
-  g.fillStyle = 'rgba(200,160,255,.9)';
-  [[GX - 11, GY - 44], [GX + 12, GY - 36], [GX + 8, GY - 48]].forEach(function (p) {
-    g.beginPath(); g.moveTo(p[0], p[1] - 2.2); g.lineTo(p[0] + 1.6, p[1]); g.lineTo(p[0], p[1] + 2.2); g.lineTo(p[0] - 1.6, p[1]); g.closePath(); g.fill();
+  /* деревянная тумба */
+  rr(g, 15, GY - 12, 16, 9, 2);
+  g.fillStyle = lg(g, 15, 0, 31, 0, [C.woodL, C.wood, C.woodD]); g.fill(); outline(g);
+  /* каркас катушки */
+  rr(g, 18, GY - 35, 10, 24, 3);
+  g.fillStyle = lg(g, 18, 0, 28, 0, ['#b06a35', '#8d5225', '#5f3617']); g.fill(); outline(g);
+  /* медные витки */
+  g.strokeStyle = 'rgba(255,196,126,.85)'; g.lineWidth = 1.1;
+  for (var y = GY - 32; y < GY - 11; y += 3.1) {
+    g.beginPath(); g.ellipse(GX, y, 5.4, 1.5, 0, 0, 6.283); g.stroke();
+  }
+  /* шар-разрядник */
+  g.fillStyle = rg(g, GX - 2, GY - 42, 1, 8, ['#ffffff', '#e2eef7', '#9fb3c6']);
+  g.beginPath(); g.arc(GX, GY - 40, 5.6, 0, 6.283); g.fill();
+  g.strokeStyle = 'rgba(58,80,100,.5)'; g.lineWidth = 0.9; g.stroke();
+  /* искры */
+  g.strokeStyle = 'rgba(168,222,255,.9)'; g.lineWidth = 1.15;
+  [[-9, -47, 3], [8, -45, -2], [1, -51, 0]].forEach(function (p2) {
+    g.beginPath(); g.moveTo(GX + p2[0], GY + p2[1]); g.lineTo(GX + p2[0] + p2[2], GY + p2[1] - 3.8); g.stroke();
   });
 });
 

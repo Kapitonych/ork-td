@@ -57,7 +57,7 @@ var TOWERS = {
   archer:   { name: 'Лучники',  cost: 80,  dmg: 16, rate: 2.4, range: 2.9, proj: 'arrow', pspeed: 520, desc: 'Быстрые стрелы по одной цели' },
   ballista: { name: 'Баллиста', cost: 150, dmg: 85, rate: 0.9, range: 4.4, proj: 'bolt',  pspeed: 760, desc: 'Тяжёлый болт, пробивает броню' },
   frost:    { name: 'Стужа',    cost: 120, dmg: 9,  rate: 1.5, range: 2.7, proj: 'ice',   pspeed: 460, slow: 0.45, slowDur: 1.6, desc: 'Замедляет орков на 45%' },
-  mage:     { name: 'Магия',    cost: 190, dmg: 38, rate: 1.2, range: 3.3, proj: 'orb',   pspeed: 340, splash: 1.15, desc: 'Урон по площади' },
+  tesla:    { name: 'Тесла',    cost: 190, dmg: 30, rate: 1.15, range: 3.2, proj: 'zap',   pspeed: 2400, splash: 0.8, desc: 'Молния бьёт по площади' },
   catapult: { name: 'Катапульта', cost: 220, dmg: 80, rate: 0.5, range: 4.0, proj: 'stone', pspeed: 300, splash: 1.55, desc: 'Тяжёлый камень, бьёт по толпе' }
 };
 var UP_MUL = [0, 0.75, 1.3];        // цена апгрейда как доля base cost
@@ -216,9 +216,9 @@ function fire(G, t) {
     G.shots.push({ x: t.x, y: t.y - 16, target: best, type: 'ice', life: 0.18, dmg: 0, speed: 0 });
   } else {
     G.shots.push({
-      x: t.x, y: t.y - 16, target: best, tx: best.x, ty: best.y,
+      x: t.x, y: t.y - 16, ox: t.x, oy: t.y - 16, target: best, tx: best.x, ty: best.y,
       type: st.proj, speed: st.pspeed, dmg: st.dmg, splash: st.splash, slow: st.slow,
-      slowDur: st.slowDur, life: 3
+      slowDur: st.slowDur, life: st.proj === 'zap' ? 0.55 : 3
     });
   }
 }
@@ -408,7 +408,7 @@ function simSpot(G, skill) {
 function simulate(seed, opt) {
   opt = opt || {};
   var skill = opt.skill == null ? 1 : opt.skill;
-  var G = newGame(seed), t = 0, h = 1 / 30, order = ['archer', 'ballista', 'mage', 'frost'], mixed = 0;
+  var G = newGame(seed), t = 0, h = 1 / 30, order = ['archer', 'ballista', 'tesla', 'frost'], mixed = 0;
   var trace = [], traceLast = 0;
   while (!G.over && t < 900) {
     if (G.phase === 'build') {
@@ -417,7 +417,7 @@ function simulate(seed, opt) {
         var maxT = opt.maxTowers || 12;
         var spot = simSpot(G, skill);
         var type = G.wave >= 6 && G.gold >= TOWERS.catapult.cost && mixed % 4 === 3 ? 'catapult'
-          : G.gold >= TOWERS.mage.cost && mixed % 3 === 2 ? 'mage'
+          : G.gold >= TOWERS.tesla.cost && mixed % 3 === 2 ? 'tesla'
           : G.gold >= TOWERS.ballista.cost && mixed % 3 === 1 ? 'ballista' : 'archer';
         var reserve = 1 + (1 - skill) * 0.9;   // новичок копит и строит реже
         if (spot && G.towers.length < maxT && G.gold >= TOWERS[type].cost * reserve) {
