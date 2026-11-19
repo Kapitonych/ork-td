@@ -162,12 +162,12 @@ function drawTower(g, t, ghost) {
   }
 }
 
-function hpBar(g, e, y) {
-  var w = Math.max(16, e.r * 2.0), h = 3, x = e.x - w / 2;
+/* полоса рисуется в ЭКРАННЫХ координатах: x — центр, y — верх */
+function hpBar(g, cx, y, w, k) {
+  var h = 3, x = cx - w / 2;
   g.fillStyle = 'rgba(10,14,8,.78)'; g.fillRect(x - 1, y - 1, w + 2, h + 2);
-  var k = Math.max(0, e.hp / e.maxHp);
   g.fillStyle = k > 0.6 ? '#88c94f' : k > 0.3 ? '#e0ad3c' : '#cf4a33';
-  g.fillRect(x, y, w * k, h);
+  g.fillRect(x, y, w * Math.max(0, k), h);
 }
 
 function drawEnemy(g, e) {
@@ -192,7 +192,9 @@ function drawEnemy(g, e) {
     g.fillStyle = grd2; g.fillRect(bx, by, bw * Math.max(0, e.hp / e.maxHp), bh);
   } else {
     var cc = Math.floor(e.x / CELL), rr2 = Math.floor(e.y / CELL);
-    if (cc >= 0 && cc < COLS && rr2 >= 0 && rr2 < ROWS) hpBar(g, e, p.y - e.r * ESC * 2.2);
+    if (cc >= 0 && cc < COLS && rr2 >= 0 && rr2 < ROWS) {
+      hpBar(g, p.x, p.y - e.r * ESC * 2.2, Math.max(14, e.r * ESC * 2.4), e.hp / e.maxHp);
+    }
   }
 }
 
