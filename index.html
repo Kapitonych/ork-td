@@ -51,9 +51,9 @@
   }
   .mini:active{transform:translateY(1px);}
   /* ---------- поле ---------- */
-  #fieldWrap{position:relative; flex:1 1 auto; display:flex; align-items:center; justify-content:center; overflow:hidden; min-height:0;}
+  #fieldWrap{position:relative; flex:0 0 auto; display:block; overflow:hidden; min-height:140px;}
   #cv{
-    display:block; width:100%; height:100%; object-fit:contain;
+    position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:contain;
     image-rendering:-webkit-optimize-contrast;
     touch-action:none;
   }
@@ -155,7 +155,6 @@
 
   <div id="fieldWrap">
     <canvas id="cv" width="400" height="640"></canvas>
-    </div>
     <div id="flash"></div>
     <div id="toast"></div>
   </div>
@@ -187,9 +186,9 @@
   </div>
 </div>
 
-<script src="sim.js?v=202611190153"></script>
-<script src="sprites.js?v=202611190153"></script>
-<script src="platform.js?v=202611190153"></script>
-<script src="view.js?v=202611190153"></script>
+<script src="sim.js?v=202611191936"></script>
+<script src="sprites.js?v=202611191936"></script>
+<script src="platform.js?v=202611191936"></script>
+<script src="view.js?v=202611191936"></script>
 </body>
 </html>

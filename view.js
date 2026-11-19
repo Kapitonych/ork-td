@@ -1,14 +1,15 @@
-/* view.js — рендер, ввод, UI. Логика только в sim.js, спрайты в sprites.js. */
+/* view.js — рендер (изометрия 2:1), ввод, UI. Логика в sim.js, спрайты в sprites.js. */
 (function () {
 'use strict';
 
 var CELL = SIM.CELL, COLS = SIM.COLS, ROWS = SIM.ROWS;
-var W = COLS * CELL, H = ROWS * CELL;
-var BK = 2;                                   // поле печём в 2× — резко на retina
+var W = COLS * CELL, H = ROWS * CELL;         // виртуальный размер поля (не экранный)
+var VW = 400, VH = 640;                        // экранный холст в логических пикселях
+var TW = 19, TH = 9.5;                         // полуоси ромба (заполняются в bake)
 
 var cv = document.getElementById('cv');
 var DPR = Math.min(2, window.devicePixelRatio || 1);
-cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
 var ctx = cv.getContext('2d');
 ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
@@ -25,7 +26,6 @@ var el = {
   stars: document.getElementById('winStars')
 };
 
-/* трекер ошибок для проверки сборки */
 window.__errs = [];
 window.addEventListener('error', function (e) { window.__errs.push(String(e.message || e.error)); });
 window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rej: ' + e.reason); });
@@ -34,227 +34,247 @@ var G = SIM.newGame((Date.now() & 0x7fffffff) || 7);
 var UI = { placing: null, sel: null, ghost: null, speed: 1, toastT: 0, hudT: 0, record: 0 };
 try { UI.record = (Platform.load() || {}).bestStars || 0; } catch (e) {}
 
-var ICONS = { archer: '🏹', frost: '❄️', ballista: '🎯', mage: '✨', catapult: '🪨' };
 var ORDER = Object.keys(SIM.TOWERS).sort(function (a, b) { return SIM.TOWERS[a].cost - SIM.TOWERS[b].cost; });
 
 function prand(i) { var x = Math.sin(i * 127.1 + 0.5) * 43758.5453; return x - Math.floor(x); }
 
-/* ================= поле (печётся один раз) ================= */
+/* ================= изопроекция ================= */
+var OX = VW / 2, OY = VH / 2;
+function iso(wx, wy) {
+  return { x: OX + (wx - wy) * (TW / CELL), y: OY + (wx + wy) * (TH / CELL) };
+}
+function unIso(sx, sy) {
+  var u = (sx - OX) / (TW / CELL), v = (sy - OY) / (TH / CELL);
+  return { x: (u + v) / 2, y: (v - u) / 2 };
+}
+function cellCenter(c, r) { return { x: (c + 0.5) * CELL, y: (r + 0.5) * CELL }; }
+
+/* ================= поле ================= */
 var FIELD = null;
+var BK = 2;
+
+function diamond(g, c, r, fill, stroke) {
+  var p = iso(c * CELL, r * CELL);
+  var q = iso((c + 1) * CELL, r * CELL);
+  var s = iso((c + 1) * CELL, (r + 1) * CELL);
+  var t = iso(c * CELL, (r + 1) * CELL);
+  g.beginPath();
+  g.moveTo((p.x + q.x) / 2, (p.y + q.y) / 2);
+  g.lineTo((q.x + s.x) / 2, (q.y + s.y) / 2);
+  g.lineTo((s.x + t.x) / 2, (s.y + t.y) / 2);
+  g.lineTo((t.x + p.x) / 2, (t.y + p.y) / 2);
+  g.closePath();
+  g.fillStyle = fill; g.fill();
+  if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.stroke(); }
+}
 
 function bake() {
+  /* подгоняем масштаб ромба под холст */
+  var span = COLS + ROWS;
+  TW = Math.min((VW - 6) / span, (VH - 150) / (span * 0.5));
+  TH = TW * 0.5;
+
   var b = document.createElement('canvas');
-  b.width = W * BK; b.height = H * BK;
+  b.width = VW * BK; b.height = VH * BK;
   var g = b.getContext('2d');
   g.scale(BK, BK); g.lineJoin = 'round'; g.lineCap = 'round';
 
-  /* трава плитками */
+  /* газон под всей сценой */
+  var grd = g.createLinearGradient(0, 0, 0, VH);
+  grd.addColorStop(0, '#6fb746'); grd.addColorStop(1, '#7ec850');
+  g.fillStyle = grd; g.fillRect(0, 0, VW, VH);
+  for (var i = 0; i < 40; i++) {
+    var px = prand(i * 3.1) * VW, py = prand(i * 7.7 + 2) * VH, rad = 22 + prand(i * 1.7) * 40;
+    g.fillStyle = i % 2 ? 'rgba(48,104,34,.10)' : 'rgba(255,255,255,.06)';
+    g.beginPath(); g.ellipse(px, py, rad, rad * 0.55, 0, 0, 6.283); g.fill();
+  }
+
+  /* клетки */
   for (var c = 0; c < COLS; c++) for (var r = 0; r < ROWS; r++) {
-    var t = SPR.TILES[(c * 3 + r * 7) % 3];
-    g.globalAlpha = 0.92;
-    g.drawImage(t.c, c * CELL, r * CELL, CELL, CELL);
-  }
-  g.globalAlpha = 1;
-  /* крупные пятна, чтобы не было шахматки */
-  for (var i = 0; i < 34; i++) {
-    var px = prand(i * 3.1) * W, py = prand(i * 7.7 + 2) * H, rad = 18 + prand(i * 1.7) * 34;
-    g.fillStyle = i % 2 ? 'rgba(52,110,38,.10)' : 'rgba(255,255,255,.06)';
-    g.beginPath(); g.ellipse(px, py, rad, rad * 0.62, prand(i) * 3, 0, 6.283); g.fill();
+    var key = c + ',' + r;
+    var isPath = !!SIM.PATH_CELLS[key];
+    diamond(g, c, r, isPath ? (((c + r) % 2) ? '#d3ac76' : '#c9a06b')
+      : (((c + r) % 2) ? '#86cf57' : '#75bd46'), 'rgba(28,60,18,.16)');
   }
 
-  /* тропа */
-  function trace() {
-    g.beginPath(); g.moveTo(SIM.PATH[0].x, SIM.PATH[0].y);
-    for (var k = 1; k < SIM.PATH.length; k++) g.lineTo(SIM.PATH[k].x, SIM.PATH[k].y);
+  /* тропа поверх клеток — мягкая лента */
+  g.save();
+  g.beginPath();
+  var first = iso(SIM.PATH[0].x, SIM.PATH[0].y);
+  g.moveTo(first.x, first.y);
+  for (var k = 1; k < SIM.PATH.length; k++) {
+    var q = iso(SIM.PATH[k].x, SIM.PATH[k].y);
+    g.lineTo(q.x, q.y);
   }
-  trace(); g.strokeStyle = 'rgba(120,90,52,.55)'; g.lineWidth = 34; g.stroke();
-  trace(); g.strokeStyle = '#a8804f'; g.lineWidth = 29; g.stroke();
-  trace(); g.strokeStyle = '#c9a06b'; g.lineWidth = 23; g.stroke();
-  trace(); g.strokeStyle = '#ddb884'; g.lineWidth = 16; g.stroke();
+  g.strokeStyle = 'rgba(140,104,58,.55)'; g.lineWidth = TW * 1.15; g.stroke();
+  g.strokeStyle = '#c9a06b'; g.lineWidth = TW * 0.96; g.stroke();
+  g.restore();
 
-  /* фактура земли: пятна и борозды */
-  for (var s = 6; s < SIM.TOTAL; s += 9) {
-    var p = SIM.posAt(s), q = prand(s * 1.7);
-    g.fillStyle = 'rgba(150,116,74,' + (0.10 + q * 0.16) + ')';
-    g.beginPath(); g.ellipse(p.x + (q - 0.5) * 24, p.y + (prand(s) - 0.5) * 24, 4 + q * 5, 2.4 + q * 3, q * 3, 0, 6.283); g.fill();
-  }
-  /* булыжник: редкие камни по дороге, а не сплошная кладка */
-  for (var s2 = 12; s2 < SIM.TOTAL; s2 += 21) {
-    var p1 = SIM.posAt(s2), p2 = SIM.posAt(s2 + 5);
-    var dx = p2.x - p1.x, dy = p2.y - p1.y, L = Math.hypot(dx, dy) || 1;
-    var nx = -dy / L, ny = dx / L;
-    var q2 = prand(s2 * 3.3), off = (q2 - 0.5) * 24;
-    var cob = SPR.COBBLE[(s2 | 0) % 4];
-    g.globalAlpha = 0.35 + q2 * 0.25;
-    SPR.shot(g, cob, p1.x + nx * off, p1.y + ny * off, Math.atan2(dy, dx) + (q2 - 0.5) * 0.6, 0.6 + q2 * 0.5);
-    g.globalAlpha = 1;
-  }
-  /* травяные пучки по обочинам — мягкая кромка дороги */
-  for (var s3 = 6; s3 < SIM.TOTAL; s3 += 13) {
-    var a1 = SIM.posAt(s3), a2 = SIM.posAt(s3 + 5);
-    var ddx = a2.x - a1.x, ddy = a2.y - a1.y, LL = Math.hypot(ddx, ddy) || 1;
-    var px2 = -ddy / LL, py2 = ddx / LL;
-    var q3 = prand(s3 * 1.3);
-    var side = q3 > 0.5 ? 1 : -1;
-    var bx = a1.x + px2 * side * (17 + q3 * 5), by = a1.y + py2 * side * (17 + q3 * 5);
-    g.fillStyle = 'rgba(' + (q3 > 0.6 ? '120,192,74,' : '88,168,56,') + (0.35 + q3 * 0.25) + ')';
-    g.fillRect(bx, by - 2.4, 1.4, 2.6 + q3 * 2.2);
-    if (q3 > 0.45) g.fillRect(bx + 2, by - 1.2, 1.1, 2 + q3 * 1.6);
-  }
-
-  /* декор */
-  SIM.DECOR.forEach(function (d, idx) {
-    var p = { x: (d[0] + 0.5) * CELL, y: (d[1] + 0.5) * CELL + 12 };
-    var kind = idx % 4;
-    var spr = kind === 0 ? SPR.DECOR.oak : kind === 1 ? SPR.DECOR.pine : kind === 2 ? SPR.DECOR.rock : SPR.DECOR.bush;
-    SPR.put(g, spr, p.x, p.y, kind < 2 ? 0.95 : 1);
+  /* декор по всей поляне (за пределами клеток — просто украшение) */
+  var extra = [[1,0],[6,0],[0,2],[7,6],[0,9],[2,11],[6,9],[4,6],[3,3],[5,8],[1,11],[6,2],[-1,3],[8,4],[-1,7],[8,8],[3,-1],[4,12]];
+  extra.forEach(function (d, idx) {
+    if (SIM.PATH_CELLS[d[0] + ',' + d[1]]) return;
+    var p0 = iso((d[0] + 0.5) * CELL, (d[1] + 0.5) * CELL);
+    var sp0 = idx % 3 === 0 ? SPR.DECOR.pine : idx % 3 === 1 ? SPR.DECOR.oak : SPR.DECOR.bush;
+    SPR.put(g, sp0, p0.x, p0.y, idx % 3 === 2 ? 0.5 : 0.58);
   });
 
-  /* замок */
-  SPR.put(g, SPR.CASTLE, 180, H);
+  /* декор клеток */
+  SIM.DECOR.forEach(function (d, idx) {
+    var p = iso((d[0] + 0.5) * CELL, (d[1] + 0.5) * CELL);
+    var kind = idx % 4;
+    var spr = kind === 0 ? SPR.DECOR.oak : kind === 1 ? SPR.DECOR.pine : kind === 2 ? SPR.DECOR.rock : SPR.DECOR.bush;
+    SPR.put(g, spr, p.x, p.y, kind < 2 ? 0.62 : 0.6);
+  });
+
+  /* замок у конца тропы */
+  var end = iso(SIM.PATH[SIM.PATH.length - 1].x, SIM.PATH[SIM.PATH.length - 1].y);
+  SPR.put(g, SPR.CASTLE, end.x, end.y + TH * 1.1, 0.5);
 
   /* виньетка */
-  var vg = g.createRadialGradient(W / 2, H * 0.45, H * 0.3, W / 2, H * 0.45, H * 0.8);
+  var vg = g.createRadialGradient(VW / 2, VH * 0.5, VH * 0.25, VW / 2, VH * 0.5, VH * 0.75);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
-  vg.addColorStop(1, 'rgba(20,40,14,.20)');
-  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  vg.addColorStop(1, 'rgba(18,40,14,.22)');
+  g.fillStyle = vg; g.fillRect(0, 0, VW, VH);
 
   FIELD = b;
 }
 
 /* ================= объекты ================= */
-function drawTower(g, t, ghost, ok) {
+var TSC = 0.52, ESC = 0.45;      /* масштабы спрайтов: карта крупная, фигурки мелкие */
+
+function drawTower(g, t, ghost) {
   var spr = SPR.TOWER[t.type];
   if (!spr) return;
-  var bob = t.recoil ? t.recoil * 1.6 : 0;
+  var bob = t.recoil ? t.recoil * 1.4 : 0;
+  var p = iso(t.x, t.y);
+  g.fillStyle = 'rgba(0,0,0,.22)';
+  g.beginPath(); g.ellipse(p.x, p.y + TH * 0.25, TW * 0.7, TH * 0.55, 0, 0, 6.283); g.fill();
   g.save();
   if (ghost) g.globalAlpha = 0.55;
-  SPR.put(g, spr, t.x, t.y + 10 + bob, 1.02);
+  SPR.put(g, spr, p.x, p.y + TH * 0.3 + bob, TSC);
   g.restore();
-  /* уровень — золотые ромбы под башней */
   var lvl = t.lvl || 1;
   for (var l = 0; l < lvl; l++) {
-    var lx = t.x - (lvl - 1) * 3.6 + l * 7.2, ly = t.y + 22;
+    var lx = p.x - (lvl - 1) * 2.6 + l * 5.2, ly = p.y + TH * 0.85;
     g.fillStyle = '#f0cf78';
-    g.beginPath(); g.moveTo(lx, ly - 2.6); g.lineTo(lx + 2.2, ly); g.lineTo(lx, ly + 2.6); g.lineTo(lx - 2.2, ly); g.closePath(); g.fill();
-    g.strokeStyle = 'rgba(60,42,10,.65)'; g.lineWidth = 0.7; g.stroke();
+    g.beginPath(); g.moveTo(lx, ly - 2); g.lineTo(lx + 1.7, ly); g.lineTo(lx, ly + 2); g.lineTo(lx - 1.7, ly); g.closePath(); g.fill();
   }
 }
 
 function hpBar(g, e, y) {
-  var w = Math.max(20, e.r * 2.2), h = 3.4, x = e.x - w / 2;
-  g.fillStyle = 'rgba(0,0,0,.62)'; g.fillRect(x - 1, y - 1, w + 2, h + 2);
+  var w = Math.max(16, e.r * 2.0), h = 3, x = e.x - w / 2;
+  g.fillStyle = 'rgba(10,14,8,.78)'; g.fillRect(x - 1, y - 1, w + 2, h + 2);
   var k = Math.max(0, e.hp / e.maxHp);
   g.fillStyle = k > 0.6 ? '#88c94f' : k > 0.3 ? '#e0ad3c' : '#cf4a33';
   g.fillRect(x, y, w * k, h);
-}
-
-function bossBar(g, e) {
-  var w = Math.max(46, e.r * 3), h = 6;
-  var x = Math.min(W - w - 6, Math.max(6, e.x - w / 2));
-  var y = Math.max(8, e.y - e.r * 2.6);
-  g.fillStyle = 'rgba(12,10,6,.72)';
-  g.fillRect(x - 2, y - 2, w + 4, h + 4);
-  g.fillStyle = '#3a1c14'; g.fillRect(x, y, w, h);
-  var k = Math.max(0, e.hp / e.maxHp);
-  var grd = g.createLinearGradient(x, 0, x + w, 0);
-  grd.addColorStop(0, '#cf4a33'); grd.addColorStop(1, '#f0a05a');
-  g.fillStyle = grd; g.fillRect(x, y, w * k, h);
-  g.strokeStyle = 'rgba(20,10,6,.8)'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 }
 
 function drawEnemy(g, e) {
   var sheet = SPR.ENEMY[e.type];
   if (!sheet) return;
   var fr = (Math.floor(e.wob * 0.35) % 2 + 2) % 2;
-  var spr = sheet[fr];
-  var bob = Math.sin(e.wob) * 1.1;
-  SPR.put(g, spr, e.x, e.y + e.r * 0.42 + bob);
-  /* заморозка */
+  var p = iso(e.x, e.y);
+  g.fillStyle = 'rgba(0,0,0,.24)';
+  g.beginPath(); g.ellipse(p.x, p.y + TH * 0.2, TW * 0.42, TH * 0.4, 0, 0, 6.283); g.fill();
+  SPR.put(g, sheet[fr], p.x, p.y + TH * 0.25, ESC);
   if (e.slowT > 0) {
-    g.save();
-    g.globalAlpha = 0.45;
-    g.fillStyle = 'rgba(150,220,255,.55)';
-    g.beginPath(); g.ellipse(e.x, e.y - e.r * 0.7, e.r * 1.05, e.r * 1.35, 0, 0, 6.283); g.fill();
+    g.save(); g.globalAlpha = 0.4; g.fillStyle = 'rgba(150,220,255,.6)';
+    g.beginPath(); g.ellipse(p.x, p.y - e.r * ESC, e.r * ESC * 1.1, e.r * ESC * 1.5, 0, 0, 6.283); g.fill();
     g.restore();
   }
-  /* у босса полоса крупнее и не выезжает за верх поля */
-  if (e.type === 'boss') bossBar(g, e);
-  else hpBar(g, e, e.y - e.r * 2.8);
+  if (e.type === 'boss') {
+    var bw = Math.max(40, e.r * ESC * 3), bh = 5;
+    var bx = Math.min(VW - bw - 5, Math.max(5, p.x - bw / 2)), by = Math.max(6, p.y - e.r * ESC * 2.4);
+    g.fillStyle = 'rgba(12,10,6,.75)'; g.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+    var grd2 = g.createLinearGradient(bx, 0, bx + bw, 0);
+    grd2.addColorStop(0, '#cf4a33'); grd2.addColorStop(1, '#f0a05a');
+    g.fillStyle = grd2; g.fillRect(bx, by, bw * Math.max(0, e.hp / e.maxHp), bh);
+  } else {
+    var cc = Math.floor(e.x / CELL), rr2 = Math.floor(e.y / CELL);
+    if (cc >= 0 && cc < COLS && rr2 >= 0 && rr2 < ROWS) hpBar(g, e, p.y - e.r * ESC * 2.2);
+  }
 }
 
 /* ================= сцена ================= */
 function render() {
-  ctx.clearRect(0, 0, W, H);
-  if (FIELD) ctx.drawImage(FIELD, 0, 0, W, H);
+  ctx.clearRect(0, 0, VW, VH);
+  if (FIELD) ctx.drawImage(FIELD, 0, 0, VW, VH);
 
-  /* радиус */
-  var showR = null, cx = 0, cy = 0;
+  /* радиус выбранной башни — эллипс в изометрии */
+  var showR = null, rp = null;
   if (UI.placing && UI.ghost) {
     showR = SIM.towerStats(UI.placing, 1).range;
-    cx = (UI.ghost.c + 0.5) * CELL; cy = (UI.ghost.r + 0.5) * CELL;
+    rp = iso((UI.ghost.c + 0.5) * CELL, (UI.ghost.r + 0.5) * CELL);
   } else if (UI.sel != null) {
-    for (var i = 0; i < G.towers.length; i++) if (G.towers[i].id === UI.sel) { showR = G.towers[i].st.range; cx = G.towers[i].x; cy = G.towers[i].y; }
+    for (var i = 0; i < G.towers.length; i++) if (G.towers[i].id === UI.sel) { showR = G.towers[i].st.range; rp = iso(G.towers[i].x, G.towers[i].y); }
   }
-  if (showR != null) {
+  if (showR != null && rp) {
+    var rx = showR * CELL * (TW / CELL) * 1.414, ry = showR * CELL * (TH / CELL) * 1.414;
     ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, showR * CELL, 0, 6.283);
+    ctx.beginPath(); ctx.ellipse(rp.x, rp.y, rx, ry, 0, 0, 6.283);
     ctx.fillStyle = 'rgba(224,182,78,.09)'; ctx.fill();
-    ctx.setLineDash([5, 5]); ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(224,182,78,.5)'; ctx.stroke();
+    ctx.setLineDash([5, 5]); ctx.lineWidth = 1.3; ctx.strokeStyle = 'rgba(224,182,78,.5)'; ctx.stroke();
     ctx.restore();
   }
 
-  for (var k = 0; k < G.towers.length; k++) drawTower(ctx, G.towers[k], false, true);
-
+  /* подсветка клетки при постановке */
   if (UI.placing && UI.ghost) {
     var ok = SIM.cellFree(G, UI.ghost.c, UI.ghost.r) && G.gold >= SIM.TOWERS[UI.placing].cost;
-    ctx.save();
-    ctx.fillStyle = ok ? 'rgba(80,200,110,.16)' : 'rgba(210,60,50,.22)';
-    ctx.fillRect(UI.ghost.c * CELL, UI.ghost.r * CELL, CELL, CELL);
-    if (ok) { ctx.strokeStyle = 'rgba(120,230,140,.55)'; ctx.lineWidth = 1.2; ctx.strokeRect(UI.ghost.c * CELL + 0.5, UI.ghost.r * CELL + 0.5, CELL - 1, CELL - 1); }
-    drawTower(ctx, { type: UI.placing, x: (UI.ghost.c + 0.5) * CELL, y: (UI.ghost.r + 0.5) * CELL, lvl: 1, recoil: 0 }, true, ok);
-    ctx.restore();
+    diamond(ctx, UI.ghost.c, UI.ghost.r, ok ? 'rgba(120,230,140,.35)' : 'rgba(220,70,50,.35)', 'rgba(255,255,255,.35)');
   }
 
-  /* враги: дальние первыми */
-  var list = G.enemies.slice().sort(function (a, b) { return a.y - b.y; });
-  for (var m = 0; m < list.length; m++) drawEnemy(ctx, list[m]);
+  /* сборка списка по глубине */
+  var items = [];
+  G.towers.forEach(function (t) { items.push({ d: t.x + t.y, kind: 'tower', o: t }); });
+  G.enemies.forEach(function (e) { items.push({ d: e.x + e.y + 1, kind: 'enemy', o: e }); });
+  if (UI.placing && UI.ghost) {
+    var gh = { type: UI.placing, x: (UI.ghost.c + 0.5) * CELL, y: (UI.ghost.r + 0.5) * CELL, lvl: 1, recoil: 0 };
+    items.push({ d: gh.x + gh.y, kind: 'ghost', o: gh });
+  }
+  items.sort(function (a, b) { return a.d - b.d; });
+  items.forEach(function (it) {
+    if (it.kind === 'tower') drawTower(ctx, it.o, false);
+    else if (it.kind === 'ghost') drawTower(ctx, it.o, true);
+    else drawEnemy(ctx, it.o);
+  });
 
   /* снаряды */
   for (var s = 0; s < G.shots.length; s++) {
     var sh = G.shots[s];
+    var sp = iso(sh.x, sh.y);
     if (sh.type === 'ice') {
       ctx.globalAlpha = Math.max(0, Math.min(1, sh.life * 6));
-      SPR.shot(ctx, SPR.SHOT.ice, sh.x, sh.y, 0, 0.9);
+      SPR.shot(ctx, SPR.SHOT.ice, sp.x, sp.y, 0, 0.85);
       ctx.globalAlpha = 1;
       continue;
     }
-    var ang = Math.atan2(sh.ty - sh.y, sh.tx - sh.x);
-    SPR.shot(ctx, SPR.SHOT[sh.type] || SPR.SHOT.arrow, sh.x, sh.y, ang, 1);
+    var t2 = iso(sh.tx, sh.ty);
+    var ang = Math.atan2(t2.y - sp.y, t2.x - sp.x);
+    SPR.shot(ctx, SPR.SHOT[sh.type] || SPR.SHOT.arrow, sp.x, sp.y, ang, 0.95);
   }
 
   /* кольца взрывов */
   for (var rr = 0; rr < G.rings.length; rr++) {
     var rn = G.rings[rr], a = Math.max(0, rn.life / rn.t);
-    ctx.strokeStyle = 'rgba(255,196,110,' + (a * 0.75) + ')';
-    ctx.lineWidth = 2.4 * a + 0.6;
-    ctx.beginPath(); ctx.arc(rn.x, rn.y, rn.r, 0, 6.283); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,150,60,' + (a * 0.14) + ')';
-    ctx.beginPath(); ctx.arc(rn.x, rn.y, rn.r, 0, 6.283); ctx.fill();
+    var cp = iso(rn.x, rn.y);
+    ctx.strokeStyle = 'rgba(255,196,110,' + (a * 0.7) + ')';
+    ctx.lineWidth = 2 * a + 0.6;
+    ctx.beginPath(); ctx.ellipse(cp.x, cp.y, rn.r * (TW / CELL) * 1.414, rn.r * (TH / CELL) * 1.414, 0, 0, 6.283); ctx.stroke();
   }
 
   /* частицы */
-  for (var p = 0; p < G.parts.length; p++) {
-    var q = G.parts[p];
-    ctx.globalAlpha = Math.max(0, q.life / q.max);
-    ctx.fillStyle = q.color;
-    ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 6.283); ctx.fill();
+  for (var p2 = 0; p2 < G.parts.length; p2++) {
+    var q2 = G.parts[p2], qp = iso(q2.x, q2.y);
+    ctx.globalAlpha = Math.max(0, q2.life / q2.max);
+    ctx.fillStyle = q2.color;
+    ctx.beginPath(); ctx.arc(qp.x, qp.y, q2.r, 0, 6.283); ctx.fill();
   }
   ctx.globalAlpha = 1;
 
   if (G.flash > 0) {
-    ctx.fillStyle = 'rgba(170,40,30,' + (G.flash * 0.35) + ')';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(170,40,30,' + (G.flash * 0.3) + ')';
+    ctx.fillRect(0, 0, VW, VH);
   }
 }
 
@@ -265,7 +285,6 @@ function toast(msg) {
   UI.toastT = 2.2;
 }
 
-/* иконка башни в рейке — маленький рендер настоящего спрайта, без эмодзи */
 function railIcon(key) {
   var spr = SPR.TOWER[key];
   var w = 38, h = 46, c = document.createElement('canvas');
@@ -313,8 +332,6 @@ function updateUI() {
     btns[i].classList.toggle('sel', UI.placing === k);
     btns[i].classList.toggle('poor', G.gold < SIM.TOWERS[k].cost);
   }
-
-  /* подсказка «есть на что построиться»: рейка начинает пульсировать */
   var canBuild = G.phase === 'build' && G.gold >= SIM.TOWERS[ORDER[0]].cost && !UI.placing;
   rail.classList.toggle('nudge', canBuild);
 
@@ -359,9 +376,9 @@ function updateUI() {
 /* ================= ввод ================= */
 function toField(cx, cy) {
   var r = cv.getBoundingClientRect();
-  var k = Math.min(r.width / W, r.height / H);
-  var ox = (r.width - W * k) / 2, oy = (r.height - H * k) / 2;
-  return { x: (cx - r.left - ox) / k, y: (cy - r.top - oy) / k };
+  var k = Math.min(r.width / VW, r.height / VH);
+  var ox = (r.width - VW * k) / 2, oy = (r.height - VH * k) / 2;
+  return unIso((cx - r.left - ox) / k, (cy - r.top - oy) / k);
 }
 function cellOf(ev) {
   var p = toField(ev.clientX, ev.clientY);
@@ -373,7 +390,6 @@ cv.addEventListener('pointerdown', function (ev) {
   var cell = cellOf(ev);
   if (cell.c < 0 || cell.c >= COLS || cell.r < 0 || cell.r >= ROWS) return;
   if (UI.placing) {
-    /* тап по уже стоящей башне — это выбор её, а не попытка построить поверх */
     var existing = SIM.towerAt(G, cell.c, cell.r);
     if (existing) {
       UI.sel = existing.id; UI.placing = null; UI.ghost = null;
@@ -403,15 +419,10 @@ cv.addEventListener('pointermove', function (ev) {
 });
 
 el.waveBtn.addEventListener('click', function () {
-  if (G.phase === 'build') {
-    SIM.startWave(G);
-    Platform.haptic('heavy');
-  } else if (G.phase === 'wave' && G.wave < SIM.WAVES) {
+  if (G.phase === 'build') { SIM.startWave(G); Platform.haptic('heavy'); }
+  else if (G.phase === 'wave' && G.wave < SIM.WAVES) {
     var r = SIM.startWave(G, true);
-    if (r.ok) {
-      toast('Волна ' + G.wave + ' досрочно · +' + r.bonus + ' золота');
-      Platform.haptic('success');
-    }
+    if (r.ok) { toast('Волна ' + G.wave + ' досрочно · +' + r.bonus + ' золота'); Platform.haptic('success'); }
   }
   updateUI(); render();
 });
@@ -460,6 +471,21 @@ function restart() {
   toast('Выбери башню внизу и поставь рядом с тропой');
 }
 
+/* ================= раскладка ================= */
+function layout() {
+  var app = document.getElementById('app'), wrap = document.getElementById('fieldWrap');
+  if (!app || !wrap) return;
+  var others = 0;
+  for (var i = 0; i < app.children.length; i++) {
+    var ch = app.children[i];
+    if (ch !== wrap) others += ch.offsetHeight;
+  }
+  var hgt = app.clientHeight - others;
+  wrap.style.height = Math.max(140, hgt) + 'px';
+}
+window.addEventListener('resize', layout);
+window.addEventListener('orientationchange', layout);
+
 /* ================= цикл ================= */
 var last = performance.now(), acc = 0, stepH = 1 / 60;
 function frame(now) {
@@ -470,7 +496,7 @@ function frame(now) {
   while (acc >= stepH && guard++ < 14) { SIM.step(G, stepH); acc -= stepH; }
   render();
   UI.hudT += dt;
-  if (UI.hudT > 0.1) { UI.hudT = 0; updateUI(); }
+  if (UI.hudT > 0.1) { UI.hudT = 0; updateUI(); layout(); }
   if (UI.toastT > 0) { UI.toastT -= dt; if (UI.toastT <= 0) toastEl.classList.remove('on'); }
   if ((G.phase === 'win' || G.phase === 'lose') && overlay.classList.contains('hidden')) showOverlay();
   requestAnimationFrame(frame);
@@ -478,6 +504,7 @@ function frame(now) {
 
 /* ================= старт ================= */
 Platform.ready();
+layout();
 bake();
 buildRail();
 updateUI();
@@ -485,7 +512,6 @@ render();
 requestAnimationFrame(frame);
 setTimeout(function () { toast('Выбери башню внизу и поставь рядом с тропой'); }, 700);
 
-/* API для проверки/баланса */
 window.Game = {
   get G() { return G; },
   SIM: SIM, UI: UI, SPR: SPR,
@@ -498,9 +524,10 @@ window.Game = {
   balance: function (n, opt) { return SIM.simulateMany(n || 40, opt); },
   cellOf: function (c, r) {
     var rect = cv.getBoundingClientRect();
-    var k = Math.min(rect.width / W, rect.height / H);
-    var ox = (rect.width - W * k) / 2, oy = (rect.height - H * k) / 2;
-    return { x: rect.left + ox + (c + 0.5) * CELL * k, y: rect.top + oy + (r + 0.5) * CELL * k };
+    var k = Math.min(rect.width / VW, rect.height / VH);
+    var ox = (rect.width - VW * k) / 2, oy = (rect.height - VH * k) / 2;
+    var p = iso((c + 0.5) * CELL, (r + 0.5) * CELL);
+    return { x: rect.left + ox + p.x * k, y: rect.top + oy + p.y * k };
   }
 };
 })();
