@@ -4,16 +4,15 @@
 
 var CELL = SIM.CELL, COLS = SIM.COLS, ROWS = SIM.ROWS;
 var W = COLS * CELL, H = ROWS * CELL;         // виртуальный размер поля (не экранный)
-var VW = 400;                                  // ширина холста в логических пикселях
+var VW = 400, VH = 640;                        // холст = площадь поля (логические px)
 var SPAN = COLS + ROWS;
-var TW = (VW - 10) / SPAN, TH = TW * 0.5;      // полуоси ромба
-var VH = Math.round(SPAN * TH + 46);           // высота холста = высота ромба + запас
+/* RATIO — насколько «круто» смотрим: 0.5 = классическая изометрия 2:1, 1 = клетки-ромбы ~45° */
+var RATIO = (function () { var m = location.search.match(/iso=([\d.]+)/); return m ? parseFloat(m[1]) : 1.45; })();
+var TW = 20, TH = TW * RATIO;                  // полуоси ромба
 
 var cv = document.getElementById('cv');
 var DPR = Math.min(2, window.devicePixelRatio || 1);
-cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
 var ctx = cv.getContext('2d');
-ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
 var flashEl = document.getElementById('flash'), toastEl = document.getElementById('toast');
 var rail = document.getElementById('rail'), panel = document.getElementById('towerPanel');
@@ -46,8 +45,7 @@ function prand(i) { var x = Math.sin(i * 127.1 + 0.5) * 43758.5453; return x - M
 
 /* ================= изопроекция ================= */
 /* центр ромба: карта смещена, поэтому центрируем по её середине */
-var OX = VW / 2 - ((W - H) / 2) * (TW / CELL);
-var OY = VH / 2 - ((W + H) / 2) * (TH / CELL);
+var OX = 0, OY = 0;
 function iso(wx, wy) {
   return { x: OX + (wx - wy) * (TW / CELL), y: OY + (wx + wy) * (TH / CELL) };
 }
@@ -325,6 +323,7 @@ function enemyIcon(type) {
 
 var briefWave = -1;
 function updateBrief() {
+  if (!el.stTowers) return;
   var nx = G.phase === 'wave' ? G.wave : Math.min(SIM.WAVES, G.wave + 1);
   var def = SIM.WAVEDEF[nx - 1];
   el.brTitle.textContent = G.phase === 'wave' ? 'Идёт волна ' + nx : 'Следующая волна ' + nx;
@@ -580,19 +579,24 @@ function restart() {
 }
 
 /* ================= раскладка ================= */
+function fit() {
+  var wrap = document.getElementById('fieldWrap');
+  if (!wrap) return;
+  var w = Math.max(240, wrap.clientWidth), h = Math.max(200, wrap.clientHeight);
+  VW = Math.round(w); VH = Math.round(h);
+  cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  TW = (VW - 8) / SPAN; TH = TW * RATIO;
+  var maxTH = (VH - 60) / SPAN;               /* не вылезаем за поле по высоте */
+  if (TH > maxTH) { TH = maxTH; TW = TH / RATIO; }
+  OX = VW / 2 - ((W - H) / 2) * (TW / CELL);
+  OY = VH / 2 - ((W + H) / 2) * (TH / CELL);
+  bake();
+}
+var fitT = 0;
 function layout() {
-  var app = document.getElementById('app'), wrap = document.getElementById('fieldWrap');
-  if (!app || !wrap) return;
-  var others = 0;
-  for (var i = 0; i < app.children.length; i++) {
-    var ch = app.children[i];
-    if (ch !== wrap && ch.id !== 'mid') others += ch.offsetHeight;
-  }
-  var avail = app.clientHeight - others;
-  /* карта в ромбе 2:1: поле ровно по холсту, остальное отдаём UI */
-  var wW = wrap.clientWidth || app.clientWidth;
-  var mapH = Math.round(wW * VH / VW);
-  wrap.style.height = Math.max(140, Math.round(mapH)) + 'px';
+  clearTimeout(fitT);
+  fitT = setTimeout(fit, 60);
 }
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', layout);
@@ -615,8 +619,7 @@ function frame(now) {
 
 /* ================= старт ================= */
 Platform.ready();
-layout();
-bake();
+fit();
 buildRail();
 updateUI();
 render();
