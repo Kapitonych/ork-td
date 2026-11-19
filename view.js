@@ -4,8 +4,10 @@
 
 var CELL = SIM.CELL, COLS = SIM.COLS, ROWS = SIM.ROWS;
 var W = COLS * CELL, H = ROWS * CELL;         // виртуальный размер поля (не экранный)
-var VW = 400, VH = 640;                        // экранный холст в логических пикселях
-var TW = 19, TH = 9.5;                         // полуоси ромба (заполняются в bake)
+var VW = 400;                                  // ширина холста в логических пикселях
+var SPAN = COLS + ROWS;
+var TW = (VW - 10) / SPAN, TH = TW * 0.5;      // полуоси ромба
+var VH = Math.round(SPAN * TH + 46);           // высота холста = высота ромба + запас
 
 var cv = document.getElementById('cv');
 var DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -23,7 +25,11 @@ var el = {
   tpStats: document.getElementById('tpStats'), up: document.getElementById('btnUp'),
   sell: document.getElementById('btnSell'), ovTitle: document.getElementById('ovTitle'),
   ovText: document.getElementById('ovText'), ovBtn: document.getElementById('ovBtn'),
-  stars: document.getElementById('winStars')
+  stars: document.getElementById('winStars'),
+  brTitle: document.getElementById('brTitle'), brCount: document.getElementById('brCount'),
+  brIcons: document.getElementById('brIcons'), brDef: document.getElementById('brDef'),
+  waveTrack: document.getElementById('waveTrack'),
+  stTowers: document.getElementById('stTowers'), stDps: document.getElementById('stDps'), stGold: document.getElementById('stGold')
 };
 
 window.__errs = [];
@@ -39,7 +45,9 @@ var ORDER = Object.keys(SIM.TOWERS).sort(function (a, b) { return SIM.TOWERS[a].
 function prand(i) { var x = Math.sin(i * 127.1 + 0.5) * 43758.5453; return x - Math.floor(x); }
 
 /* ================= изопроекция ================= */
-var OX = VW / 2, OY = VH / 2;
+/* центр ромба: карта смещена, поэтому центрируем по её середине */
+var OX = VW / 2 - ((W - H) / 2) * (TW / CELL);
+var OY = VH / 2 - ((W + H) / 2) * (TH / CELL);
 function iso(wx, wy) {
   return { x: OX + (wx - wy) * (TW / CELL), y: OY + (wx + wy) * (TH / CELL) };
 }
@@ -69,11 +77,6 @@ function diamond(g, c, r, fill, stroke) {
 }
 
 function bake() {
-  /* подгоняем масштаб ромба под холст */
-  var span = COLS + ROWS;
-  TW = Math.min((VW - 6) / span, (VH - 150) / (span * 0.5));
-  TH = TW * 0.5;
-
   var b = document.createElement('canvas');
   b.width = VW * BK; b.height = VH * BK;
   var g = b.getContext('2d');
@@ -298,6 +301,59 @@ function railIcon(key) {
   return c;
 }
 
+function enemyIcon(type) {
+  var spr = SPR.ENEMY[type][0];
+  var w = 26, h = 30, c = document.createElement('canvas');
+  c.width = w * 2; c.height = h * 2;
+  var g = c.getContext('2d'); g.scale(2, 2);
+  var sc = Math.min((w - 3) / spr.w, (h - 3) / spr.h) * 1.12;
+  var gx = spr.gx != null ? spr.gx : spr.w / 2;
+  var gy = spr.gy != null ? spr.gy : spr.h;
+  g.translate(w / 2, h - 4);
+  g.drawImage(spr.c, -gx * sc, -gy * sc, spr.w * sc, spr.h * sc);
+  return c;
+}
+
+var briefWave = -1;
+function updateBrief() {
+  var nx = G.phase === 'wave' ? G.wave : Math.min(SIM.WAVES, G.wave + 1);
+  var def = SIM.WAVEDEF[nx - 1];
+  el.brTitle.textContent = G.phase === 'wave' ? 'Идёт волна ' + nx : 'Следующая волна ' + nx;
+  if (UI.trackWave !== nx) {
+    UI.trackWave = nx;
+    var tr = '';
+    for (var w2 = 1; w2 <= SIM.WAVES; w2++) tr += '<i class="' + (w2 < nx ? 'done' : w2 === nx ? 'now' : '') + '"></i>';
+    el.waveTrack.innerHTML = tr;
+  }
+  if (nx !== briefWave) {
+    briefWave = nx;
+    el.brIcons.innerHTML = '';
+    if (def) {
+      var total = 0;
+      def.groups.forEach(function (grp) {
+        total += grp.n;
+        var ic = document.createElement('span');
+        ic.className = 'br-ic';
+        ic.appendChild(enemyIcon(grp.t));
+        var nn = document.createElement('b'); nn.textContent = '×' + grp.n;
+        ic.appendChild(nn);
+        el.brIcons.appendChild(ic);
+      });
+      el.brCount.textContent = total + ' врагов';
+    }
+  }
+  var dps = 0;
+  for (var i = 0; i < G.towers.length; i++) dps += G.towers[i].st.dmg * G.towers[i].st.rate;
+  var lv = { 1: 'ур.1', 2: 'ур.2', 3: 'ур.3' }, byLv = {};
+  for (var k = 0; k < G.towers.length; k++) byLv[G.towers[k].lvl] = (byLv[G.towers[k].lvl] || 0) + 1;
+  var parts = [];
+  for (var L in byLv) parts.push((lv[L] || L) + '×' + byLv[L]);
+  el.brDef.textContent = G.towers.length ? parts.join(' · ') : 'пусто';
+  el.stTowers.textContent = G.towers.length;
+  el.stDps.textContent = Math.round(dps);
+  el.stGold.textContent = Math.floor(G.gold);
+}
+
 function buildRail() {
   rail.innerHTML = '';
   ORDER.forEach(function (key) {
@@ -351,6 +407,8 @@ function updateUI() {
     el.waveBtn.textContent = G.phase === 'win' ? 'Замок выстоял' : 'Замок пал';
     el.waveBtn.classList.add('wait');
   }
+
+  updateBrief();
 
   var t = null;
   for (var j = 0; j < G.towers.length; j++) if (G.towers[j].id === UI.sel) t = G.towers[j];
@@ -480,10 +538,13 @@ function layout() {
   var others = 0;
   for (var i = 0; i < app.children.length; i++) {
     var ch = app.children[i];
-    if (ch !== wrap) others += ch.offsetHeight;
+    if (ch !== wrap && ch.id !== 'mid') others += ch.offsetHeight;
   }
-  var hgt = app.clientHeight - others;
-  wrap.style.height = Math.max(140, hgt) + 'px';
+  var avail = app.clientHeight - others;
+  /* карта в ромбе 2:1: поле ровно по холсту, остальное отдаём UI */
+  var wW = wrap.clientWidth || app.clientWidth;
+  var mapH = Math.round(wW * VH / VW);
+  wrap.style.height = Math.max(140, Math.round(mapH)) + 'px';
 }
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', layout);
