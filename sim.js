@@ -113,7 +113,7 @@ function newGame(seed) {
     seed: (seed >>> 0) || 1, rng: mulberry32((seed >>> 0) || 1),
     gold: TUNE.START_GOLD, lives: TUNE.LIVES, wave: 0, phase: 'build',
     time: 0, buildLeft: BUILD_SECONDS,
-    towers: [], enemies: [], shots: [], parts: [], rings: [], pops: [],
+    towers: [], enemies: [], shots: [], parts: [], rings: [], pops: [], sfx: [],
     queue: [], spawnT: 0, waveHp: 0,
     kills: 0, leaks: 0, nextId: 1, over: null, stars: 0, flash: 0
   };
@@ -190,6 +190,7 @@ function damage(G, e, dmg, sp) {
     G.gold += e.gold;
     G.kills++;
     G.pops.push({ x: e.x, y: e.y, txt: '+' + e.gold, life: 0.85, max: 0.85 });
+    G.sfx.push('coin');
     burst(G, e.x, e.y, e.type === 'boss' ? 22 : 7, '#5b7a34');
   }
 }
@@ -214,6 +215,7 @@ function fire(G, t) {
   if (!best) return;
   t.cd = 1 / st.rate;
   t.recoil = 1;
+  if (G.sfx) G.sfx.push(st.proj);
   if (st.proj === 'ice') {
     damage(G, best, st.dmg, st);
     G.shots.push({ x: t.x, y: t.y - 16, target: best, type: 'ice', life: 0.18, dmg: 0, speed: 0 });
@@ -251,7 +253,7 @@ function step(G, dt) {
     e.wob += dt * 9;
     if (e.s >= TOTAL) {
       e.dead = true; e.leaked = true;
-      G.lives -= e.leak; G.leaks++; G.flash = 0.6;
+      G.lives -= e.leak; G.leaks++; G.flash = 0.6; G.sfx.push('hurt');
       burst(G, e.x, e.y, 10, '#b4402c');
       continue;
     }
@@ -297,6 +299,8 @@ function step(G, dt) {
     s.x += dx / d * move; s.y += dy / d * move;
     if (s.life <= 0) G.shots.splice(k, 1);
   }
+
+  if (G.sfx && G.sfx.length > 60) G.sfx.splice(0, G.sfx.length - 60);
 
   /* всплывающие цифры золота */
   for (var pz = G.pops.length - 1; pz >= 0; pz--) {

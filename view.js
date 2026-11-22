@@ -56,11 +56,13 @@ function diamond(g, c, r, fill, stroke) {
   var q = iso((c + 1) * CELL, r * CELL);
   var s = iso((c + 1) * CELL, (r + 1) * CELL);
   var t = iso(c * CELL, (r + 1) * CELL);
+  /* клетка = ровный квадрат: углы клетки, без вписанного ромба */
+  var pad = Math.max(0.5, U * 0.02);
   g.beginPath();
-  g.moveTo((p.x + q.x) / 2, (p.y + q.y) / 2);
-  g.lineTo((q.x + s.x) / 2, (q.y + s.y) / 2);
-  g.lineTo((s.x + t.x) / 2, (s.y + t.y) / 2);
-  g.lineTo((t.x + p.x) / 2, (t.y + p.y) / 2);
+  g.moveTo(p.x + pad, p.y + pad);
+  g.lineTo(q.x - pad, q.y + pad);
+  g.lineTo(s.x - pad, s.y - pad);
+  g.lineTo(t.x + pad, t.y - pad);
   g.closePath();
   g.fillStyle = fill; g.fill();
   if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.stroke(); }
@@ -233,7 +235,10 @@ function render() {
     for (var si = 0; si < SIM.SPOTS.length; si++) {
       var sp0 = SIM.SPOTS[si];
       if (!SIM.cellFree(G, sp0.c, sp0.r)) continue;
-      diamond(ctx, sp0.c, sp0.r, 'rgba(255,255,255,.07)', 'rgba(196,236,150,.30)');
+      diamond(ctx, sp0.c, sp0.r, 'rgba(255,255,255,.10)', 'rgba(206,244,158,.55)');
+      var ctr = iso((sp0.c + 0.5) * CELL, (sp0.r + 0.5) * CELL);
+      ctx.fillStyle = 'rgba(214,246,168,.75)';
+      ctx.beginPath(); ctx.arc(ctr.x, ctr.y, 2.2, 0, 6.283); ctx.fill();
     }
   }
 
@@ -512,6 +517,7 @@ function nearestTower(px, py, rad) {
 
 cv.addEventListener('pointerdown', function (ev) {
   ev.preventDefault();
+  audioInit();
   var f = toField(ev.clientX, ev.clientY);
   var cell = cellOf(ev);
   var inMap = cell.c >= 0 && cell.c < COLS && cell.r >= 0 && cell.r < ROWS;
@@ -543,6 +549,7 @@ cv.addEventListener('pointerdown', function (ev) {
     if (!res.ok) { toast(res.why); Platform.haptic('error'); }
     else {
       Platform.haptic('medium');
+      SFX.build();
       UI.sel = null;
       if (G.gold < SIM.TOWERS[UI.placing].cost) { UI.placing = null; toast('Золото кончилось — ждём волну'); }
     }
@@ -565,13 +572,25 @@ cv.addEventListener('pointermove', function (ev) {
 });
 
 el.waveBtn.addEventListener('click', function () {
-  if (G.phase === 'build') { SIM.startWave(G); Platform.haptic('heavy'); }
+  if (G.phase === 'build') { SIM.startWave(G); Platform.haptic('heavy'); SFX.wave(); }
   else if (G.phase === 'wave' && G.wave < SIM.WAVES) {
     var r = SIM.startWave(G, true);
     if (r.ok) { toast('Волна ' + G.wave + ' досрочно · +' + r.bonus + ' золота'); Platform.haptic('success'); }
   }
   updateUI(); render();
 });
+
+var sndBtn = document.getElementById('btnSnd');
+if (sndBtn) {
+  sndBtn.addEventListener('click', function () {
+    audioInit();
+    muted = !muted;
+    sndBtn.classList.toggle('off', muted);
+    sndBtn.textContent = muted ? '♪̸' : '♪';
+    try { localStorage.setItem('ork_td_mute', muted ? '1' : '0'); } catch (e) {}
+    if (!muted) SFX.coin();
+  });
+}
 
 el.speed.addEventListener('click', function () {
   UI.speed = UI.speed === 1 ? 2 : UI.speed === 2 ? 3 : 1;
@@ -639,6 +658,58 @@ function layout() {
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', layout);
 
+/* ================= звук (синтез, без файлов) ================= */
+var AC = null, muted = false;
+try { muted = localStorage.getItem('ork_td_mute') === '1'; } catch (e) {}
+(function () {
+  var b = document.getElementById('btnSnd');
+  if (b) { b.classList.toggle('off', muted); b.textContent = muted ? '♪̸' : '♪'; }
+})();
+function audioInit() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; }
+}
+function blip(f1, f2, dur, type, vol) {
+  if (!AC || muted) return;
+  var t0 = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square';
+  o.frequency.setValueAtTime(f1, t0);
+  if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(40, f2), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.05, t0 + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(dur, vol, cut) {
+  if (!AC || muted) return;
+  var n = Math.floor(AC.sampleRate * dur), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+  for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  var src = AC.createBufferSource(); src.buffer = buf;
+  var f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cut || 900;
+  var g = AC.createGain(); g.gain.value = vol || 0.1;
+  src.connect(f); f.connect(g); g.connect(AC.destination); src.start();
+}
+var SFX = {
+  arrow: function () { blip(900, 520, 0.06, 'square', 0.022); },
+  bolt: function () { blip(320, 150, 0.10, 'sawtooth', 0.04); },
+  zap: function () { noise(0.07, 0.07, 2800); blip(1500, 380, 0.09, 'square', 0.025); },
+  ice: function () { blip(1250, 900, 0.06, 'sine', 0.025); },
+  stone: function () { noise(0.12, 0.09, 700); blip(190, 90, 0.14, 'sine', 0.045); },
+  orb: function () { blip(700, 400, 0.08, 'sine', 0.03); },
+  coin: function () { blip(1320, 1760, 0.06, 'triangle', 0.03); },
+  hurt: function () { blip(230, 85, 0.22, 'sawtooth', 0.06); noise(0.16, 0.07, 520); },
+  wave: function () { blip(330, 500, 0.16, 'triangle', 0.045); },
+  build: function () { blip(520, 800, 0.09, 'triangle', 0.045); }
+};
+function sfxPlay(name) { var f = SFX[name]; if (f) f(); }
+function drainSfx() {
+  if (!G.sfx || !G.sfx.length) return;
+  var names = G.sfx.splice(0, G.sfx.length);
+  var budget = 4;                       /* не больше 4 звуков на кадр */
+  for (var i = 0; i < names.length && budget > 0; i++) { sfxPlay(names[i]); budget--; }
+}
+
 /* ================= джус ================= */
 /* тряска от «травмы» (trauma^2) и hit-stop — только визуал, логику не трогаем */
 var FX = { trauma: 0, stop: 0, t: 0, shx: 0, shy: 0, shake: 1 };
@@ -675,6 +746,7 @@ function frame(now) {
   acc += dt * UI.speed;
   var guard = 0;
   while (acc >= stepH && guard++ < 14) { SIM.step(G, stepH); acc -= stepH; }
+  drainSfx();
   render();
   UI.hudT += dt;
   if (UI.hudT > 0.1) { UI.hudT = 0; updateUI(); layout(); }
