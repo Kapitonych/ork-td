@@ -27,7 +27,8 @@ var el = {
   brIcons: document.getElementById('brIcons'), brDef: document.getElementById('brDef'),
   waveTrack: document.getElementById('waveTrack'),
   stTowers: document.getElementById('stTowers'), stDps: document.getElementById('stDps'), stGold: document.getElementById('stGold'),
-  metaStars: document.getElementById('metaStars')
+  metaStars: document.getElementById('metaStars'),
+  heroBtn: document.getElementById('btnHero'), meteorBtn: document.getElementById('btnMeteor')
 };
 
 window.__errs = [];
@@ -275,6 +276,22 @@ function drawTower(g, t, ghost) {
   }
 }
 
+function drawHero(g, h) {
+  var p = iso(h.x, h.y);
+  g.fillStyle = 'rgba(0,0,0,.24)';
+  g.beginPath(); g.ellipse(p.x, p.y + U * 0.10, U * 0.22, U * 0.09, 0, 0, 6.283); g.fill();
+  var fr = h.swing > 0.35 ? 1 : (Math.floor(G.time * 3) % 4 + 4) % 4;
+  SPR.put(g, SPR.HERO[fr], p.x, p.y + U * 0.12, ESC * 0.92);
+  if (h.mcd > 0) {
+    var k = 1 - h.mcd / SIM.HERO.meteor.cd;
+    g.strokeStyle = 'rgba(255,180,90,.85)'; g.lineWidth = 3;
+    g.beginPath(); g.arc(p.x, p.y + U * 0.10, U * 0.30, -1.571, -1.571 + 6.283 * k); g.stroke();
+  } else if (G.phase === 'wave') {
+    g.strokeStyle = 'rgba(255,215,120,.55)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(p.x, p.y + U * 0.10, U * 0.30, 0, 6.283); g.stroke();
+  }
+}
+
 /* полоса рисуется в ЭКРАННЫХ координатах: x — центр, y — верх */
 function hpBar(g, cx, y, w, k) {
   var h = 3, x = cx - w / 2;
@@ -370,14 +387,16 @@ function render() {
   var items = [];
   G.towers.forEach(function (t) { items.push({ d: t.x + t.y, kind: 'tower', o: t }); });
   G.enemies.forEach(function (e) { items.push({ d: e.x + e.y + 1, kind: 'enemy', o: e }); });
+  if (G.hero) items.push({ d: G.hero.x + G.hero.y + 0.5, kind: 'hero', o: G.hero });
   if (UI.placing && UI.ghost) {
-    var gh = { type: UI.placing, x: (UI.ghost.c + 0.5) * CELL, y: (UI.ghost.r + 0.5) * CELL, lvl: 1, recoil: 0 };
+    var gh = { type: UI.placing, kind: UI.placing === 'hero' ? 'hero' : '', x: (UI.ghost.c + 0.5) * CELL, y: (UI.ghost.r + 0.5) * CELL, lvl: 1, recoil: 0 };
     items.push({ d: gh.x + gh.y, kind: 'ghost', o: gh });
   }
   items.sort(function (a, b) { return a.d - b.d; });
   items.forEach(function (it) {
     if (it.kind === 'tower') drawTower(ctx, it.o, false);
-    else if (it.kind === 'ghost') drawTower(ctx, it.o, true);
+    else if (it.kind === 'ghost') { if (it.o.kind === 'hero') drawHero(ctx, { x: it.o.x, y: it.o.y, swing: 0, mcd: 0 }); else drawTower(ctx, it.o, true); }
+    else if (it.kind === 'hero') drawHero(ctx, it.o);
     else drawEnemy(ctx, it.o);
   });
 
@@ -550,6 +569,17 @@ function buildRail() {
 
 function updateUI() {
   if (el.metaStars) el.metaStars.textContent = META.stars;
+  if (el.heroBtn) {
+    el.heroBtn.disabled = !!G.hero;
+    el.heroBtn.classList.toggle('on', UI.placing === 'hero');
+    el.heroBtn.textContent = G.hero ? 'Герой на поле' : 'Герой';
+  }
+  if (el.meteorBtn) {
+    var mcd = G.hero ? G.hero.mcd : 0;
+    el.meteorBtn.disabled = !G.hero || mcd > 0;
+    el.meteorBtn.textContent = mcd > 0 ? 'Метеор ' + Math.ceil(mcd) + 'с' : 'Метеор';
+    el.meteorBtn.classList.toggle('on', !!G.hero && mcd <= 0);
+  }
   el.gold.textContent = Math.floor(G.gold);
   el.lives.textContent = G.lives;
   el.wave.textContent = Math.min(G.wave, SIM.WAVES) + '/' + SIM.WAVES;
@@ -659,6 +689,12 @@ cv.addEventListener('pointerdown', function (ev) {
   }
   if (cell.c < 0 || cell.c >= COLS || cell.r < 0 || cell.r >= ROWS) return;
   if (UI.placing) {
+    if (UI.placing === 'hero') {
+      var hr = SIM.placeHero(G, cell.c, cell.r);
+      if (!hr.ok) { toast(hr.why); Platform.haptic('error'); }
+      else { Platform.haptic('medium'); SFX.build(); UI.placing = null; toast('Герой на поле · метеор готов'); }
+      UI.ghost = null; updateUI(); render(); return;
+    }
     var existing = SIM.towerAt(G, cell.c, cell.r);
     if (existing) {
       UI.sel = existing.id; UI.placing = null; UI.ghost = null;
@@ -696,6 +732,21 @@ el.waveBtn.addEventListener('click', function () {
     var r = SIM.startWave(G, true);
     if (r.ok) { toast('Волна ' + G.wave + ' досрочно · +' + r.bonus + ' золота'); Platform.haptic('success'); }
   }
+  updateUI(); render();
+});
+
+if (el.heroBtn) el.heroBtn.addEventListener('click', function () {
+  audioInit();
+  if (G.hero) { toast('Герой уже на поле'); return; }
+  UI.placing = 'hero'; UI.ghost = null;
+  toast('Тапни клетку — поставь героя');
+  updateUI(); render();
+});
+if (el.meteorBtn) el.meteorBtn.addEventListener('click', function () {
+  audioInit();
+  var r = SIM.meteor(G);
+  if (!r.ok) { toast(r.why); Platform.haptic('error'); }
+  else { Platform.haptic('heavy'); addTrauma(0.5); hitStop(60); }
   updateUI(); render();
 });
 
@@ -838,7 +889,8 @@ var SFX = {
   coin: function () { blip(1320, 1760, 0.06, 'triangle', 0.03); },
   hurt: function () { blip(230, 85, 0.22, 'sawtooth', 0.06); noise(0.16, 0.07, 520); },
   wave: function () { blip(330, 500, 0.16, 'triangle', 0.045); },
-  build: function () { blip(520, 800, 0.09, 'triangle', 0.045); }
+  build: function () { blip(520, 800, 0.09, 'triangle', 0.045); },
+  sword: function () { blip(560, 240, 0.07, 'triangle', 0.04); noise(0.04, 0.035, 3200); }
 };
 function sfxPlay(name) { var f = SFX[name]; if (f) f(); }
 function drainSfx() {

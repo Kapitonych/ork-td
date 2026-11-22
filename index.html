@@ -120,6 +120,14 @@
   }
   /* ---------- низ ---------- */
   #bottom{flex:0 0 auto; padding:8px 10px 10px; background:#191a13;}
+  #specials{display:flex; gap:8px; margin-bottom:8px;}
+  .sp{
+    flex:1; padding:9px 8px; border-radius:9px; font-size:13px; font-weight:600;
+    background:linear-gradient(#3a4250,#232832); border:1px solid #5a6a7d; color:#dfe9f5;
+  }
+  .sp:active{transform:scale(.98); filter:brightness(.92);}
+  .sp:disabled{opacity:.42;}
+  .sp.on{border-color:#e0b64e; color:#ffe9a8; box-shadow:0 0 0 1px rgba(224,182,78,.35) inset;}
   #btnWave{
     width:100%; padding:13px; border-radius:10px; font-size:16px; font-weight:bold;
     background:linear-gradient(#7d2f24,#4d1a13); border:1px solid #c0654a;
@@ -210,6 +218,10 @@
   <section id="rail"></section>
 
   <footer id="bottom">
+    <div id="specials">
+      <button id="btnHero" class="sp">Герой</button>
+      <button id="btnMeteor" class="sp" disabled>Метеор</button>
+    </div>
     <button id="btnWave">Начать волну</button>
   </footer>
 </div>
@@ -232,9 +244,9 @@
   </div>
 </div>
 
-<script src="sim.js?v=202611221923"></script>
-<script src="sprites.js?v=202611221923"></script>
-<script src="platform.js?v=202611221923"></script>
-<script src="view.js?v=202611221923"></script>
+<script src="sim.js?v=202611222055"></script>
+<script src="sprites.js?v=202611222055"></script>
+<script src="platform.js?v=202611222055"></script>
+<script src="view.js?v=202611222055"></script>
 </body>
 </html>

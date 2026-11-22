@@ -489,6 +489,121 @@ var ENEMY = {
   })
 };
 
+/* ==================== ГЕРОЙ ==================== */
+function knight(g, cx, cy, r, frame) {
+  var stride = frame === 0 ? 1 : frame === 2 ? -1 : 0;
+  var bob = frame === 1 ? -r * 0.04 : 0;
+  cy += bob;
+  shadow(g, cx, cy + 1, r * 0.95, r * 0.28, 0.34);
+
+  /* плащ */
+  g.beginPath();
+  g.moveTo(cx - r * 0.5, cy - r * 1.45);
+  g.quadraticCurveTo(cx - r * 1.05, cy - r * 0.6, cx - r * 0.86, cy + r * 0.18);
+  g.lineTo(cx, cy - r * 0.1);
+  g.lineTo(cx + r * 0.86, cy + r * 0.18);
+  g.quadraticCurveTo(cx + r * 1.05, cy - r * 0.6, cx + r * 0.5, cy - r * 1.45);
+  g.closePath();
+  g.fillStyle = lg(g, cx - r, 0, cx + r, 0, ['#b03627', '#7d2318']);
+  g.fill(); outline(g, 'rgba(40,10,6,.7)', 1.4);
+
+  /* ноги */
+  [-1, 1].forEach(function (side) {
+    g.save();
+    g.translate(cx + side * r * 0.26, cy - r * 0.6);
+    g.rotate(stride * side * 0.16);
+    rr(g, -r * 0.17, 0, r * 0.34, r * 0.62, r * 0.13);
+    g.fillStyle = lg(g, 0, 0, r * 0.4, 0, ['#98a1ad', '#5b636e']);
+    g.fill(); outline(g, 'rgba(20,24,30,.72)', 1.3);
+    rr(g, -r * 0.21, r * 0.46, r * 0.42, r * 0.18, r * 0.08);
+    g.fillStyle = '#3c434c'; g.fill();
+    g.restore();
+  });
+
+  /* торс */
+  g.beginPath();
+  g.moveTo(cx - r * 0.5, cy - r * 0.62);
+  g.quadraticCurveTo(cx - r * 0.6, cy - r * 1.2, cx - r * 0.36, cy - r * 1.4);
+  g.lineTo(cx + r * 0.36, cy - r * 1.4);
+  g.quadraticCurveTo(cx + r * 0.6, cy - r * 1.2, cx + r * 0.5, cy - r * 0.62);
+  g.closePath();
+  g.fillStyle = lg(g, cx - r, 0, cx + r, 0, ['#6b7480', '#aab4c0', '#e3ebf4']);
+  g.fill(); outline(g, 'rgba(20,24,30,.75)', 1.5);
+
+  /* табард с крестом */
+  g.fillStyle = '#a5301f';
+  rr(g, cx - r * 0.3, cy - r * 1.32, r * 0.6, r * 0.72, r * 0.08); g.fill();
+  g.fillStyle = C.gold;
+  g.fillRect(cx - r * 0.06, cy - r * 1.26, r * 0.12, r * 0.6);
+  g.fillRect(cx - r * 0.18, cy - r * 1.14, r * 0.36, r * 0.11);
+
+  /* блик */
+  g.strokeStyle = 'rgba(255,255,255,.32)'; g.lineWidth = Math.max(1, r * 0.1);
+  g.beginPath();
+  g.moveTo(cx - r * 0.44, cy - r * 1.34);
+  g.quadraticCurveTo(cx - r * 0.54, cy - r * 1.02, cx - r * 0.44, cy - r * 0.7);
+  g.stroke();
+
+  /* наплечники */
+  [-1, 1].forEach(function (side) {
+    g.fillStyle = lg(g, cx + side * r * 0.4, 0, cx + side * r * 0.8, 0, ['#dfe7f0', '#8b95a2']);
+    g.beginPath(); g.ellipse(cx + side * r * 0.46, cy - r * 1.26, r * 0.26, r * 0.21, side * 0.35, 0, 6.283); g.fill();
+    outline(g, 'rgba(24,28,34,.7)', 1.1);
+  });
+
+  /* руки */
+  g.strokeStyle = '#7b8593'; g.lineWidth = r * 0.24; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(cx - r * 0.46, cy - r * 1.2); g.lineTo(cx - r * 0.66, cy - r * 0.74); g.stroke();
+  g.beginPath(); g.moveTo(cx + r * 0.46, cy - r * 1.2); g.lineTo(cx + r * 0.7, cy - r * 0.84); g.stroke();
+
+  /* меч */
+  var sx = cx + r * 0.72, sy = cy - r * 0.8;
+  g.strokeStyle = '#4a3a24'; g.lineWidth = r * 0.11;
+  g.beginPath(); g.moveTo(sx, sy + r * 0.1); g.lineTo(sx, sy - r * 0.1); g.stroke();
+  g.fillStyle = C.gold;
+  g.fillRect(sx - r * 0.16, sy - r * 0.18, r * 0.32, r * 0.09);
+  g.fillStyle = lg(g, sx, sy - r * 1.1, sx + r * 0.1, sy - r * 0.2, ['#f2f7fc', '#b9c3ce', '#7f8894']);
+  g.beginPath();
+  g.moveTo(sx - r * 0.07, sy - r * 0.2);
+  g.lineTo(sx + r * 0.07, sy - r * 0.2);
+  g.lineTo(sx + r * 0.05, sy - r * 1.05);
+  g.lineTo(sx, sy - r * 1.2);
+  g.lineTo(sx - r * 0.05, sy - r * 1.05);
+  g.closePath(); g.fill(); outline(g, 'rgba(26,30,38,.7)', 1);
+
+  /* щит */
+  g.beginPath();
+  g.moveTo(cx - r * 0.95, cy - r * 1.12);
+  g.lineTo(cx - r * 0.46, cy - r * 1.12);
+  g.lineTo(cx - r * 0.46, cy - r * 0.3);
+  g.lineTo(cx - r * 0.7, cy + r * 0.02);
+  g.lineTo(cx - r * 0.95, cy - r * 0.3);
+  g.closePath();
+  g.fillStyle = lg(g, cx - r, 0, cx - r * 0.5, 0, ['#e6edf5', '#9aa4b1', '#5f686f']);
+  g.fill(); outline(g, 'rgba(24,28,34,.8)', 1.4);
+  g.fillStyle = '#a5301f';
+  g.beginPath(); g.arc(cx - r * 0.7, cy - r * 0.72, r * 0.13, 0, 6.283); g.fill();
+
+  /* голова в шлеме */
+  var hx = cx, hy = cy - r * 1.72, hr = r * 0.5;
+  g.fillStyle = lg(g, hx - hr, 0, hx + hr, 0, ['#f0f5fa', '#c3ccd7', '#8b95a1']);
+  g.beginPath(); g.arc(hx, hy, hr, 0, 6.283); g.fill();
+  outline(g, 'rgba(22,26,32,.78)', 1.5);
+  /* забрало */
+  g.fillStyle = '#3a4149';
+  rr(g, hx - hr * 0.62, hy - hr * 0.1, hr * 1.24, hr * 0.5, hr * 0.14); g.fill();
+  g.strokeStyle = '#20252b'; g.lineWidth = Math.max(1, hr * 0.1);
+  g.beginPath(); g.moveTo(hx - hr * 0.4, hy + hr * 0.1); g.lineTo(hx + hr * 0.4, hy + hr * 0.1); g.stroke();
+  g.beginPath(); g.moveTo(hx - hr * 0.4, hy + hr * 0.26); g.lineTo(hx + hr * 0.4, hy + hr * 0.26); g.stroke();
+  /* плюмаж */
+  g.fillStyle = lg(g, hx, hy - hr * 2, hx, hy - hr, ['#e0523c', '#a5301f']);
+  g.beginPath();
+  g.moveTo(hx - hr * 0.1, hy - hr * 0.85);
+  g.quadraticCurveTo(hx - hr * 0.5, hy - hr * 2.1, hx + hr * 0.55, hy - hr * 1.85);
+  g.quadraticCurveTo(hx + hr * 0.2, hy - hr * 1.5, hx + hr * 0.15, hy - hr * 0.9);
+  g.closePath(); g.fill(); outline(g, 'rgba(70,16,10,.6)', 1);
+}
+
 /* ==================== СНАРЯДЫ ==================== */
 var SHOT = {};
 SHOT.arrow = Spr(20, 6, function (g) {
@@ -681,6 +796,7 @@ CASTLE.gx = 130; CASTLE.gy = 88;
 
 root.SPR = {
   S: S, TOWER: TOWER, ENEMY: ENEMY, SHOT: SHOT, DECOR: DECORSPR, CASTLE: CASTLE,
+  HERO: [0, 1, 2, 3].map(function (f) { return Spr(24 * 5.2, 24 * 5.0, function (g) { knight(g, 24 * 5.2 / 2, 24 * 5.0 - 24 * 0.4, 24, f); }); }),
   TILES: TILES, COBBLE: COBBLE, TW: TW, TH: TH, GX: GX, GY: GY,
   /* спрайт ставится нижней точкой привязки в (x, y) */
   put: function (g, spr, x, y, sc, rot) {

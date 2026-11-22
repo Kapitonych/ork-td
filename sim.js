@@ -135,7 +135,7 @@ function newGame(seed, meta) {
     gold: TUNE.START_GOLD + 40 * (up.gold || 0),
     lives: TUNE.LIVES + 2 * (up.hp || 0), wave: 0, phase: 'build',
     time: 0, buildLeft: BUILD_SECONDS,
-    towers: [], enemies: [], shots: [], parts: [], rings: [], pops: [], sfx: [],
+    hero: null, towers: [], enemies: [], shots: [], parts: [], rings: [], pops: [], sfx: [],
     queue: [], spawnT: 0, waveHp: 0,
     kills: 0, leaks: 0, nextId: 1, over: null, stars: 0, flash: 0
   };
@@ -332,6 +332,8 @@ function step(G, dt) {
     if (pp.life <= 0) G.pops.splice(pz, 1);
   }
 
+  heroStep(G, dt);
+
   /* кольца взрывов */
   for (var r = G.rings.length - 1; r >= 0; r--) {
     var rn = G.rings[r];
@@ -387,6 +389,72 @@ function placeTower(G, c, r, type) {
   G.towers.push(t);
   return { ok: true, tower: t };
 }
+/* ---------- герой ---------- */
+var HERO = {
+  dmg: 26, rate: 1.5, range: 1.8,
+  meteor: { dmg: 150, radius: 1.7, cd: 22 }
+};
+
+function placeHero(G, c, r) {
+  if (G.hero) return { ok: false, why: 'герой уже на карте' };
+  if (!cellFree(G, c, r)) return { ok: false, why: 'здесь нельзя' };
+  var p = PX(c, r);
+  G.hero = { c: c, r: r, x: p.x, y: p.y, cd: 0, mcd: 0, swing: 0 };
+  return { ok: true };
+}
+
+function heroStep(G, dt) {
+  var h = G.hero;
+  if (!h) return;
+  if (h.mcd > 0) h.mcd = Math.max(0, h.mcd - dt);
+  if (h.swing > 0) h.swing = Math.max(0, h.swing - dt * 4);
+  if (h.cd > 0) { h.cd -= dt; if (h.cd > 0) return; }
+  var range = HERO.range * CELL, best = null, bd = 1e9;
+  for (var i = 0; i < G.enemies.length; i++) {
+    var e = G.enemies[i];
+    if (e.dead) continue;
+    var d = Math.hypot(e.x - h.x, e.y - h.y);
+    if (d <= range && d < bd) { bd = d; best = e; }
+  }
+  if (!best) return;
+  h.cd = 1 / HERO.rate;
+  h.swing = 1;
+  damage(G, best, HERO.dmg * (G.meta ? G.meta.dmg : 1), { dmg: 0 });
+  if (G.sfx) G.sfx.push('sword');
+}
+
+/* метеор: бьёт по самому плотному месту */
+function meteor(G) {
+  var h = G.hero;
+  if (!h) return { ok: false, why: 'сначала поставь героя' };
+  if (h.mcd > 0) return { ok: false, why: 'ещё не готово' };
+  var rad = HERO.meteor.radius * CELL, best = null, bn = -1;
+  for (var i = 0; i < G.enemies.length; i++) {
+    var e = G.enemies[i];
+    if (e.dead) continue;
+    var n = 0;
+    for (var j = 0; j < G.enemies.length; j++) {
+      var o = G.enemies[j];
+      if (!o.dead && Math.hypot(o.x - e.x, o.y - e.y) <= rad) n++;
+    }
+    if (n > bn) { bn = n; best = e; }
+  }
+  if (!best) return { ok: false, why: 'некуда бить' };
+  h.mcd = HERO.meteor.cd;
+  var tx = best.x, ty = best.y;
+  for (var k = G.enemies.length - 1; k >= 0; k--) {
+    var en = G.enemies[k];
+    if (en.dead) continue;
+    var dd = Math.hypot(en.x - tx, en.y - ty);
+    if (dd > rad) continue;
+    damage(G, en, HERO.meteor.dmg * (1 - 0.45 * (dd / rad)) * (G.meta ? G.meta.dmg : 1), { dmg: 0 });
+  }
+  G.rings.push({ x: tx, y: ty, r: 6, max: rad, life: 0.45, t: 0.45 });
+  burst(G, tx, ty, 18, '#c9702f');
+  G.sfx.push('stone');
+  return { ok: true, x: tx, y: ty };
+}
+
 function upgrade(G, id) {
   var t = null;
   for (var i = 0; i < G.towers.length; i++) if (G.towers[i].id === id) t = G.towers[i];
@@ -501,9 +569,10 @@ function simulateMany(n, opt) {
 
 root.SIM = {
   CELL: CELL, COLS: COLS, ROWS: ROWS, WAVES: WAVES, LIVES: TUNE.LIVES, START_GOLD: TUNE.START_GOLD, TUNE: TUNE,
-  TOWERS: TOWERS, ENEMIES: ENEMIES, UP_MUL: UP_MUL, WAVEDEF: WAVEDEF,
+  TOWERS: TOWERS, ENEMIES: ENEMIES, UP_MUL: UP_MUL, WAVEDEF: WAVEDEF, HERO: HERO,
   PATH: PATH, TOTAL: TOTAL, PATH_CELLS: PATH_CELLS, DECOR: DECOR, SPOTS: SPOTS,
   newGame: newGame, startWave: startWave, earlyBonus: earlyBonus, waveCount: waveCount, step: step, placeTower: placeTower,
+  placeHero: placeHero, meteor: meteor, heroStep: heroStep,
   upgrade: upgrade, sell: sell, upCost: upCost, towerAt: towerAt, cellFree: cellFree,
   towerStats: towerStats, posAt: posAt, simulate: simulate, simulateMany: simulateMany
 };
