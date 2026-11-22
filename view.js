@@ -84,15 +84,37 @@ function bake() {
     g.beginPath(); g.ellipse(px, py, rad, rad * 0.55, 0, 0, 6.283); g.fill();
   }
 
-  /* клетки */
+  /* клетки: 4 тона травы, кочки и камешки */
+  var toneG = ['#7ec84f', '#75bd46', '#83cb55', '#6fb642'];
+  var toneP = ['#c9a06b', '#c39a66', '#cfa872'];
   for (var c = 0; c < COLS; c++) for (var r = 0; r < ROWS; r++) {
     var key = c + ',' + r;
     var isPath = !!SIM.PATH_CELLS[key];
-    diamond(g, c, r, isPath ? (((c + r) % 2) ? '#d3ac76' : '#c9a06b')
-      : (((c + r) % 2) ? '#86cf57' : '#75bd46'), 'rgba(28,60,18,.16)');
+    var h1 = prand(c * 13.7 + r * 7.3 + 1);
+    var col = isPath ? toneP[Math.floor(h1 * 3) % 3] : toneG[Math.floor(h1 * 4) % 4];
+    diamond(g, c, r, col, 'rgba(28,60,18,.13)');
+    var p0 = iso(c * CELL, r * CELL);
+    if (!isPath) {
+      var tufts = 1 + Math.floor(prand(c * 3.3 + r * 9.1) * 3);
+      g.strokeStyle = 'rgba(44,90,26,.34)'; g.lineWidth = Math.max(1, U * 0.028);
+      for (var t1 = 0; t1 < tufts; t1++) {
+        var tx = p0.x + (0.15 + prand(c * 5.7 + t1 * 3.1 + r) * 0.7) * U;
+        var ty = p0.y + (0.2 + prand(r * 4.9 + t1 * 2.3 + c) * 0.66) * U;
+        g.beginPath();
+        g.moveTo(tx, ty); g.lineTo(tx - U * 0.05, ty - U * 0.1);
+        g.moveTo(tx, ty); g.lineTo(tx + U * 0.06, ty - U * 0.085);
+        g.stroke();
+      }
+      if (prand(c * 7.1 + r * 3.9) > 0.87) {
+        g.fillStyle = 'rgba(150,158,146,.75)';
+        g.beginPath();
+        g.ellipse(p0.x + U * 0.62, p0.y + U * 0.66, U * 0.06, U * 0.035, 0, 0, 6.283);
+        g.fill();
+      }
+    }
   }
 
-  /* тропа поверх клеток — мягкая лента */
+  /* тропа: обочина, полотно, светлая середина, колея */
   g.save();
   g.beginPath();
   var first = iso(SIM.PATH[0].x, SIM.PATH[0].y);
@@ -101,30 +123,56 @@ function bake() {
     var q = iso(SIM.PATH[k].x, SIM.PATH[k].y);
     g.lineTo(q.x, q.y);
   }
-  g.strokeStyle = 'rgba(140,104,58,.55)'; g.lineWidth = U * 0.58; g.stroke();
-  g.strokeStyle = '#c9a06b'; g.lineWidth = U * 0.48; g.stroke();
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  g.strokeStyle = 'rgba(122,90,50,.5)'; g.lineWidth = U * 0.60; g.stroke();
+  g.strokeStyle = '#c9a06b'; g.lineWidth = U * 0.50; g.stroke();
+  g.strokeStyle = 'rgba(223,188,138,.40)'; g.lineWidth = U * 0.24; g.stroke();
+  g.setLineDash([U * 0.10, U * 0.20]);
+  g.strokeStyle = 'rgba(146,106,66,.30)'; g.lineWidth = U * 0.07; g.stroke();
+  g.setLineDash([]);
   g.restore();
 
-  /* декор по всей поляне (за пределами клеток — просто украшение) */
+  /* камешки вдоль обочины */
+  for (var sgi = 0; sgi < SIM.PATH.length - 1; sgi++) {
+    var A = SIM.PATH[sgi], B = SIM.PATH[sgi + 1];
+    var segLen = Math.hypot(B.x - A.x, B.y - A.y), steps = Math.max(1, Math.round(segLen / (CELL * 1.4)));
+    for (var st = 0; st < steps; st++) {
+      var t2 = st / steps, sd = prand(sgi * 5.1 + st * 2.7);
+      var gx = A.x + (B.x - A.x) * t2, gy = A.y + (B.y - A.y) * t2;
+      var sp2 = iso(gx, gy), off = (sd > 0.5 ? 1 : -1) * U * (0.3 + sd * 0.12);
+      if (prand(sgi * 3.3 + st) > 0.45) {
+        g.fillStyle = 'rgba(158,150,132,.7)';
+        g.beginPath();
+        g.ellipse(sp2.x + (B.y === A.y ? 0 : off), sp2.y + (B.y === A.y ? off : 0), U * 0.045, U * 0.03, 0, 0, 6.283);
+        g.fill();
+      }
+    }
+  }
+
+  /* декор-кластеры */
   var extra = [[1,0],[6,0],[0,2],[7,6],[0,9],[2,11],[6,9],[4,6],[3,3],[5,8],[1,11],[6,2],[-1,3],[8,4],[-1,7],[8,8],[3,-1],[4,12]];
   extra.forEach(function (d, idx) {
     if (SIM.PATH_CELLS[d[0] + ',' + d[1]]) return;
-    var p0 = iso((d[0] + 0.5) * CELL, (d[1] + 0.5) * CELL);
-    var sp0 = idx % 3 === 0 ? SPR.DECOR.pine : idx % 3 === 1 ? SPR.DECOR.oak : SPR.DECOR.bush;
-    SPR.put(g, sp0, p0.x, p0.y, idx % 3 === 2 ? 0.5 : 0.58);
+    var p1 = iso((d[0] + 0.5) * CELL, (d[1] + 0.5) * CELL);
+    var kinds = [SPR.DECOR.pine, SPR.DECOR.oak, SPR.DECOR.bush];
+    SPR.put(g, kinds[idx % 3], p1.x, p1.y, idx % 3 === 2 ? 0.5 : 0.58);
+    if (idx % 2 === 0) {
+      SPR.put(g, kinds[(idx + 1) % 3], p1.x + U * 0.26, p1.y + U * 0.18, 0.42);
+    }
   });
 
-  /* декор клеток */
+  /* декор клеток: одиночное дерево + куст рядом */
   SIM.DECOR.forEach(function (d, idx) {
     var p = iso((d[0] + 0.5) * CELL, (d[1] + 0.5) * CELL);
     var kind = idx % 4;
     var spr = kind === 0 ? SPR.DECOR.oak : kind === 1 ? SPR.DECOR.pine : kind === 2 ? SPR.DECOR.rock : SPR.DECOR.bush;
-    SPR.put(g, spr, p.x, p.y, kind < 2 ? 0.62 : 0.6);
+    SPR.put(g, spr, p.x, p.y, kind < 2 ? 0.66 : 0.6);
+    if (kind < 2) SPR.put(g, SPR.DECOR.bush, p.x - U * 0.22, p.y + U * 0.16, 0.42);
   });
 
   /* замок у конца тропы */
   var end = iso(SIM.PATH[SIM.PATH.length - 1].x, SIM.PATH[SIM.PATH.length - 1].y);
-  SPR.put(g, SPR.CASTLE, end.x, end.y + U * 0.55, 0.52);
+  SPR.put(g, SPR.CASTLE, end.x, end.y + U * 0.30, 0.82);
 
   /* виньетка */
   var vg = g.createRadialGradient(VW / 2, VH * 0.5, VH * 0.25, VW / 2, VH * 0.5, VH * 0.75);
