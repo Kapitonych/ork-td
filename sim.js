@@ -113,7 +113,7 @@ function newGame(seed) {
     seed: (seed >>> 0) || 1, rng: mulberry32((seed >>> 0) || 1),
     gold: TUNE.START_GOLD, lives: TUNE.LIVES, wave: 0, phase: 'build',
     time: 0, buildLeft: BUILD_SECONDS,
-    towers: [], enemies: [], shots: [], parts: [], rings: [],
+    towers: [], enemies: [], shots: [], parts: [], rings: [], pops: [],
     queue: [], spawnT: 0, waveHp: 0,
     kills: 0, leaks: 0, nextId: 1, over: null, stars: 0, flash: 0
   };
@@ -189,6 +189,7 @@ function damage(G, e, dmg, sp) {
     e.dead = true;
     G.gold += e.gold;
     G.kills++;
+    G.pops.push({ x: e.x, y: e.y, txt: '+' + e.gold, life: 0.85, max: 0.85 });
     burst(G, e.x, e.y, e.type === 'boss' ? 22 : 7, '#5b7a34');
   }
 }
@@ -199,6 +200,8 @@ function burst(G, x, y, n, color) {
     G.parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.35 + G.rng() * 0.3, max: 0.65, color: color, r: 1.5 + G.rng() * 2 });
   }
   if (G.parts.length > 220) G.parts.splice(0, G.parts.length - 220);
+  if (!G.pops) G.pops = [];
+  if (G.pops.length > 24) G.pops.splice(0, G.pops.length - 24);
 }
 
 function fire(G, t) {
@@ -293,6 +296,14 @@ function step(G, dt) {
     }
     s.x += dx / d * move; s.y += dy / d * move;
     if (s.life <= 0) G.shots.splice(k, 1);
+  }
+
+  /* всплывающие цифры золота */
+  for (var pz = G.pops.length - 1; pz >= 0; pz--) {
+    var pp = G.pops[pz];
+    pp.life -= dt;
+    pp.y -= dt * 26;
+    if (pp.life <= 0) G.pops.splice(pz, 1);
   }
 
   /* кольца взрывов */

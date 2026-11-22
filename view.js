@@ -207,6 +207,8 @@ function boltPath(g, x1, y1, x2, y2) {
 
 function render() {
   ctx.clearRect(0, 0, VW, VH);
+  ctx.save();
+  if (FX.shx || FX.shy) ctx.translate(FX.shx, FX.shy);
   if (FIELD) ctx.drawImage(FIELD, 0, 0, VW, VH);
 
   /* радиус выбранной башни — эллипс в изометрии */
@@ -305,6 +307,21 @@ function render() {
     ctx.beginPath(); ctx.arc(qp.x, qp.y, q2.r, 0, 6.283); ctx.fill();
   }
   ctx.globalAlpha = 1;
+
+  for (var pz2 = 0; pz2 < (G.pops || []).length; pz2++) {
+    var pp2 = G.pops[pz2], ppos = iso(pp2.x, pp2.y);
+    var al = Math.max(0, pp2.life / pp2.max);
+    ctx.globalAlpha = al;
+    ctx.font = 'bold 15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,26,14,.85)';
+    ctx.strokeText(pp2.txt, ppos.x, ppos.y);
+    ctx.fillStyle = '#ffe07a';
+    ctx.fillText(pp2.txt, ppos.x, ppos.y);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
 
   if (G.flash > 0) {
     ctx.fillStyle = 'rgba(170,40,30,' + (G.flash * 0.3) + ')';
@@ -622,11 +639,39 @@ function layout() {
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', layout);
 
+/* ================= джус ================= */
+/* тряска от «травмы» (trauma^2) и hit-stop — только визуал, логику не трогаем */
+var FX = { trauma: 0, stop: 0, t: 0, shx: 0, shy: 0, shake: 1 };
+function addTrauma(a) { FX.trauma = Math.min(1, FX.trauma + a); }
+function hitStop(ms) { FX.stop = Math.max(FX.stop, ms / 1000); }
+function fxTick(real) {
+  if (FX.stop > 0) FX.stop = Math.max(0, FX.stop - real);
+  FX.trauma = Math.max(0, FX.trauma - real * 1.5);
+  var s = FX.trauma * FX.trauma * FX.shake;
+  FX.t += real * 30;
+  FX.shx = 11 * s * Math.sin(FX.t * 1.7);
+  FX.shy = 8 * s * Math.sin(FX.t * 2.3);
+}
+
 /* ================= цикл ================= */
 var last = performance.now(), acc = 0, stepH = 1 / 60;
+var prevKills = 0, prevLives = 0;
 function frame(now) {
-  var dt = (now - last) / 1000; last = now;
-  if (dt > 0.3) dt = 0.3;
+  var real = (now - last) / 1000; last = now;
+  if (real > 0.3) real = 0.3;
+  fxTick(real);
+
+  /* hit-stop: время в симуляции провисает, тряска и UI идут по реальному */
+  var dt = real * (FX.stop > 0 ? 0.16 : 1);
+  if (G.kills > prevKills) {
+    addTrauma(G.kills - prevKills > 2 ? 0.3 : 0.16);
+    prevKills = G.kills;
+  }
+  if (G.lives < prevLives) {
+    addTrauma(0.62); hitStop(70);
+    prevLives = G.lives;
+  } else if (G.lives > prevLives) prevLives = G.lives;
+
   acc += dt * UI.speed;
   var guard = 0;
   while (acc >= stepH && guard++ < 14) { SIM.step(G, stepH); acc -= stepH; }
