@@ -258,6 +258,16 @@ function orc(g, cx, cy, r, o, frame) {
   g.fillStyle = lg(g, cx - r, 0, cx + r, 0, [skinD, skin, skinL]);
   g.fill(); outline(g, 'rgba(20,28,12,.55)', 1);
 
+  /* верхний свет: блик по левому краю силуэта */
+  g.save();
+  g.strokeStyle = 'rgba(255,255,255,.22)';
+  g.lineWidth = Math.max(1, r * 0.1);
+  g.beginPath();
+  g.moveTo(cx - r * 0.5, cy - r * 1.32);
+  g.quadraticCurveTo(cx - r * 0.63, cy - r * 0.95, cx - r * 0.5, cy - r * 0.6);
+  g.stroke();
+  g.restore();
+
   /* жилет / броня */
   if (o.armor !== false) {
     g.beginPath();
@@ -305,6 +315,9 @@ function orc(g, cx, cy, r, o, frame) {
   g.fillStyle = skin;
   g.beginPath(); g.arc(hx, hy, hr, 0, 6.283); g.fill();
   outline(g, 'rgba(20,28,12,.55)', 1);
+  /* блик по макушке */
+  g.strokeStyle = 'rgba(255,255,255,.26)'; g.lineWidth = Math.max(1, hr * 0.15);
+  g.beginPath(); g.arc(hx, hy, hr * 0.93, Math.PI * 1.06, Math.PI * 1.52); g.stroke();
   /* уши */
   g.beginPath();
   g.moveTo(hx - hr * 0.85, hy - hr * 0.1); g.lineTo(hx - hr * 1.65, hy - hr * 0.75); g.lineTo(hx - hr * 0.7, hy + hr * 0.35); g.closePath();
@@ -318,9 +331,17 @@ function orc(g, cx, cy, r, o, frame) {
   g.fillStyle = '#fff4c8';
   g.beginPath(); g.arc(hx - hr * 0.33, hy + hr * 0.06, hr * 0.2, 0, 6.283); g.fill();
   g.beginPath(); g.arc(hx + hr * 0.33, hy + hr * 0.06, hr * 0.2, 0, 6.283); g.fill();
-  g.fillStyle = '#241a06';
+  g.fillStyle = o.glowEyes ? '#ff7a2f' : '#241a06';
   g.beginPath(); g.arc(hx - hr * 0.3, hy + hr * 0.09, hr * 0.09, 0, 6.283); g.fill();
   g.beginPath(); g.arc(hx + hr * 0.36, hy + hr * 0.09, hr * 0.09, 0, 6.283); g.fill();
+  if (o.glowEyes) {
+    g.save();
+    g.globalAlpha = 0.55;
+    g.fillStyle = 'rgba(255,120,40,.9)';
+    g.beginPath(); g.arc(hx - hr * 0.3, hy + hr * 0.09, hr * 0.22, 0, 6.283); g.fill();
+    g.beginPath(); g.arc(hx + hr * 0.36, hy + hr * 0.09, hr * 0.22, 0, 6.283); g.fill();
+    g.restore();
+  }
   /* рот и клыки */
   g.strokeStyle = 'rgba(26,16,6,.75)'; g.lineWidth = Math.max(1, hr * 0.12);
   g.beginPath(); g.moveTo(hx - hr * 0.3, hy + hr * 0.45); g.lineTo(hx + hr * 0.3, hy + hr * 0.45); g.stroke();
@@ -464,7 +485,7 @@ var ENEMY = {
   }),
   warg: enemySheet(16, function (g, cx, cy, r, f) { warg(g, cx, cy, r, f); }),
   boss: enemySheet(23, function (g, cx, cy, r, f) {
-    orc(g, cx, cy, r, { skin: '#d0603c', skinD: '#98361d', skinL: '#f08d63', armor: '#8a4a2a', helm: true, horns: true, cape: '#c9301f', axes: true }, f);
+    orc(g, cx, cy, r, { skin: '#d0603c', skinD: '#98361d', skinL: '#f08d63', armor: '#8a4a2a', helm: true, horns: true, cape: '#c9301f', axes: true, glowEyes: true }, f);
   })
 };
 

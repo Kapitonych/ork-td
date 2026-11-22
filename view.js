@@ -136,7 +136,7 @@ function bake() {
 }
 
 /* ================= объекты ================= */
-var TSC = 1.0, ESC = 0.86;       /* масштабы спрайтов: под размер клетки */
+var TSC = 1.12, ESC = 1.0;       /* масштабы спрайтов: под размер клетки */
 
 function drawTower(g, t, ghost) {
   var spr = SPR.TOWER[t.type];
@@ -154,6 +154,23 @@ function drawTower(g, t, ghost) {
     var lx = p.x - (lvl - 1) * 2.8 + l * 5.6, ly = p.y + U * 0.42;
     g.fillStyle = '#f0cf78';
     g.beginPath(); g.moveTo(lx, ly - 2); g.lineTo(lx + 1.7, ly); g.lineTo(lx, ly + 2); g.lineTo(lx - 1.7, ly); g.closePath(); g.fill();
+  }
+  if (lvl >= 2 && !ghost) {
+    /* флаг на древке: 2 уровень — один, 3 — два */
+    var fh = U * 0.62, fx = p.x + U * 0.30, fy = p.y - U * 0.28;
+    g.strokeStyle = '#6b4a28'; g.lineWidth = Math.max(1.2, U * 0.035);
+    g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - fh); g.stroke();
+    var wave = Math.sin(G.time * 3 + p.x) * 1.2;
+    g.fillStyle = lvl >= 3 ? '#e8b93f' : '#c9432f';
+    g.beginPath();
+    g.moveTo(fx, fy - fh);
+    g.lineTo(fx + U * 0.30 + wave, fy - fh + U * 0.10);
+    g.lineTo(fx, fy - fh + U * 0.22);
+    g.closePath(); g.fill();
+    if (lvl >= 3) {
+      g.strokeStyle = '#f3d465'; g.lineWidth = Math.max(1.4, U * 0.04);
+      g.beginPath(); g.arc(p.x, p.y + U * 0.30, U * 0.30, 0, 6.283); g.stroke();
+    }
   }
 }
 
