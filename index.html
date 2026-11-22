@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Орды у ворот</title>
 <style>
+  /* Rubik, вариативный, подмножества cyrillic + latin */
+  @font-face{font-family:'Rubik';font-style:normal;font-weight:300 900;font-display:swap;
+    src:url('assets/fonts/rubik-cyr.woff2') format('woff2');
+    unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;}
+  @font-face{font-family:'Rubik';font-style:normal;font-weight:300 900;font-display:swap;
+    src:url('assets/fonts/rubik-lat.woff2') format('woff2');
+    unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
   :root{
     --stone:#2a2b26; --stone2:#3a3a31; --gold:#e0b64e; --gold2:#8a6c22;
     --blood:#a53a2a; --grass:#2f4a30; --ink:#f2e6cd;
@@ -15,7 +23,7 @@
     position:fixed; inset:0; overflow:hidden; overscroll-behavior:none; touch-action:none;
     background:radial-gradient(circle at 50% 0%, #24261f 0%, #14150f 70%);
     color:var(--ink);
-    font-family:Georgia,"Times New Roman",serif;
+    font-family:'Rubik',system-ui,-apple-system,'Segoe UI',sans-serif;
     user-select:none;
   }
   #app{
@@ -50,6 +58,7 @@
     padding:6px 10px; font-size:14px; font-weight:bold; color:var(--gold);
   }
   .mini:active{transform:translateY(1px);}
+  #btnSnd.off{opacity:.45;}
   /* ---------- поле ---------- */
   #fieldWrap{position:relative; flex:1 1 auto; display:block; overflow:hidden; min-height:180px;}
   #cv{
@@ -97,9 +106,11 @@
     border-radius:9px; padding:6px 1px 5px;
   }
   .tbtn .ic{font-size:18px; line-height:1;}
-  .tbtn canvas{display:block; height:27px; width:auto; margin-bottom:1px;}
-  .tbtn .nm{font-size:9.5px; color:#d9d3ba; line-height:1; white-space:nowrap; letter-spacing:-.2px;}
-  .tbtn .pr{font-size:11px; font-weight:bold; color:var(--gold); line-height:1;}
+  .tbtn canvas{display:block; height:30px; width:auto; margin-bottom:2px;}
+  .tbtn .nm{font-size:10.5px; color:#d9d3ba; line-height:1; white-space:nowrap; letter-spacing:-.1px;}
+  .tbtn .pr{font-size:11.5px; font-weight:700; color:var(--gold); line-height:1;}
+  .tbtn:active{transform:scale(.97); filter:brightness(.9);}
+  .tbtn{transition:transform .08s ease, filter .08s ease, border-color .12s ease;}
   .tbtn.sel{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset, 0 0 10px rgba(224,182,78,.25);}
   .tbtn.poor{opacity:.45;}
   #rail.nudge .tbtn:not(.poor){animation:pulse 1.8s ease-in-out infinite;}
@@ -188,9 +199,9 @@
   </div>
 </div>
 
-<script src="sim.js?v=202611221829"></script>
-<script src="sprites.js?v=202611221829"></script>
-<script src="platform.js?v=202611221829"></script>
-<script src="view.js?v=202611221829"></script>
+<script src="sim.js?v=202611221837"></script>
+<script src="sprites.js?v=202611221837"></script>
+<script src="platform.js?v=202611221837"></script>
+<script src="view.js?v=202611221837"></script>
 </body>
 </html>

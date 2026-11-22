@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Орды у ворот — иконка</title>
+<style>
+  html,body{margin:0;background:#0d0f0a;height:100%;display:flex;align-items:center;justify-content:center;}
+  canvas{display:block;width:512px;height:512px;}
+</style>
+</head>
+<body>
+<canvas id="ic" width="512" height="512"></canvas>
+<script src="sprites.js"></script>
+<script>
+(function () {
+  var cv = document.getElementById('ic'), g = cv.getContext('2d');
+  var S = 512;
+
+  function rr(x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  }
+
+  /* фон */
+  var bg = g.createRadialGradient(S * 0.5, S * 0.32, 40, S * 0.5, S * 0.55, S * 0.78);
+  bg.addColorStop(0, '#3c5230');
+  bg.addColorStop(0.55, '#25331d');
+  bg.addColorStop(1, '#12170f');
+  rr(0, 0, S, S, 96); g.fillStyle = bg; g.fill();
+
+  /* тёплое пятно за замком */
+  var glow = g.createRadialGradient(S * 0.5, S * 0.62, 20, S * 0.5, S * 0.62, S * 0.5);
+  glow.addColorStop(0, 'rgba(226,178,84,.35)');
+  glow.addColorStop(1, 'rgba(226,178,84,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, S, S);
+
+  /* земля */
+  g.save();
+  g.beginPath(); g.ellipse(S * 0.5, S * 0.86, S * 0.42, S * 0.10, 0, 0, 6.283);
+  g.fillStyle = 'rgba(28,58,20,.75)'; g.fill();
+  g.restore();
+
+  /* замок */
+  var castle = SPR.CASTLE;
+  var cw = S * 0.94, cs = cw / castle.w;
+  g.drawImage(castle.c, (S - cw) / 2, S * 0.82 - castle.h * cs, cw, castle.h * cs);
+
+  /* вождь на переднем плане */
+  var boss = SPR.ENEMY.boss[0];
+  var bh = S * 0.62, bs = bh / boss.h;
+  /* ореол вокруг вождя */
+  var halo = g.createRadialGradient(S * 0.5, S * 0.62, 10, S * 0.5, S * 0.62, S * 0.34);
+  halo.addColorStop(0, 'rgba(255,140,60,.30)');
+  halo.addColorStop(1, 'rgba(255,140,60,0)');
+  g.fillStyle = halo; g.fillRect(0, 0, S, S);
+  g.drawImage(boss.c, S * 0.5 - boss.w * bs / 2, S * 0.955 - bh, boss.w * bs, bh);
+
+  /* золотая рамка */
+  g.lineWidth = 10;
+  var ring = g.createLinearGradient(0, 0, S, S);
+  ring.addColorStop(0, '#f5d97e');
+  ring.addColorStop(0.5, '#b98a2c');
+  ring.addColorStop(1, '#f0cf78');
+  g.strokeStyle = ring;
+  rr(7, 7, S - 14, S - 14, 90); g.stroke();
+
+  /* заголовок */
+  g.font = '900 74px Rubik, system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.lineJoin = 'round';
+  g.lineWidth = 12;
+  g.strokeStyle = 'rgba(18,12,6,.85)';
+  g.strokeText('ОРДЫ', S / 2, S * 0.20);
+  var tg = g.createLinearGradient(0, S * 0.10, 0, S * 0.24);
+  tg.addColorStop(0, '#ffe9a8');
+  tg.addColorStop(1, '#e0a94a');
+  g.fillStyle = tg;
+  g.fillText('ОРДЫ', S / 2, S * 0.20);
+
+  g.font = '700 26px Rubik, system-ui, sans-serif';
+  g.lineWidth = 7;
+  g.strokeStyle = 'rgba(18,12,6,.8)';
+  g.strokeText('У ВОРОТ', S / 2, S * 0.28);
+  g.fillStyle = '#efe3c4';
+  g.fillText('У ВОРОТ', S / 2, S * 0.28);
+
+  window.__iconReady = true;
+})();
+</script>
+</body>
+</html>

@@ -155,9 +155,9 @@ function bake() {
     if (SIM.PATH_CELLS[d[0] + ',' + d[1]]) return;
     var p1 = iso((d[0] + 0.5) * CELL, (d[1] + 0.5) * CELL);
     var kinds = [SPR.DECOR.pine, SPR.DECOR.oak, SPR.DECOR.bush];
-    SPR.put(g, kinds[idx % 3], p1.x, p1.y, idx % 3 === 2 ? 0.5 : 0.58);
+    SPR.put(g, kinds[idx % 3], p1.x, p1.y, idx % 3 === 2 ? 0.8 : 0.95);
     if (idx % 2 === 0) {
-      SPR.put(g, kinds[(idx + 1) % 3], p1.x + U * 0.26, p1.y + U * 0.18, 0.42);
+      SPR.put(g, kinds[(idx + 1) % 3], p1.x + U * 0.26, p1.y + U * 0.18, 0.7);
     }
   });
 
@@ -166,8 +166,8 @@ function bake() {
     var p = iso((d[0] + 0.5) * CELL, (d[1] + 0.5) * CELL);
     var kind = idx % 4;
     var spr = kind === 0 ? SPR.DECOR.oak : kind === 1 ? SPR.DECOR.pine : kind === 2 ? SPR.DECOR.rock : SPR.DECOR.bush;
-    SPR.put(g, spr, p.x, p.y, kind < 2 ? 0.66 : 0.6);
-    if (kind < 2) SPR.put(g, SPR.DECOR.bush, p.x - U * 0.22, p.y + U * 0.16, 0.42);
+    SPR.put(g, spr, p.x, p.y, kind < 2 ? 1.0 : 0.95);
+    if (kind < 2) SPR.put(g, SPR.DECOR.bush, p.x - U * 0.22, p.y + U * 0.16, 0.7);
   });
 
   /* замок у конца тропы */
