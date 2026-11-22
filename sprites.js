@@ -216,7 +216,7 @@ TOWER.catapult = Spr(TW, TH, function (g) {
 /* ==================== ВРАГИ ==================== */
 /* Один орк: ground point (cx, cy), радиус r, кадр 0/1. */
 function orc(g, cx, cy, r, o, frame) {
-  var stride = frame ? 1 : -1;
+  var stride = frame === 0 ? 1 : frame === 2 ? -1 : 0;
   var hip = cy - r * 0.55;
   var skin = o.skin || '#7fb050', skinD = o.skinD || '#4e7232', skinL = o.skinL || '#a8d072';
 
@@ -391,7 +391,7 @@ function orc(g, cx, cy, r, o, frame) {
 }
 
 function warg(g, cx, cy, r, frame) {
-  var stride = frame ? 1 : -1;
+  var stride = frame === 0 ? 1 : frame === 2 ? -1 : 0;
   shadow(g, cx, cy + 1, r * 1.05, r * 0.28, 0.34);
   /* лапы */
   g.strokeStyle = '#2f2a22'; g.lineWidth = r * 0.19; g.lineCap = 'round';
@@ -440,8 +440,12 @@ function warg(g, cx, cy, r, frame) {
 
 function enemySheet(r, draw) {
   var w = r * 5.2, h = r * 5.0;
-  return [0, 1].map(function (f) {
-    return Spr(w, h, function (g) { draw(g, w / 2, h - r * 0.4, r, f); });
+  /* 4 кадра шага: 0 — левая нога вперёд, 1 — проход, 2 — правая, 3 — проход с подскоком */
+  return [0, 1, 2, 3].map(function (f) {
+    return Spr(w, h, function (g) {
+      var bob = f === 1 ? -r * 0.05 : f === 3 ? -r * 0.02 : 0;
+      draw(g, w / 2, h - r * 0.4 + bob, r, f);
+    });
   });
 }
 

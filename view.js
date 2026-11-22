@@ -136,7 +136,7 @@ function bake() {
 }
 
 /* ================= объекты ================= */
-var TSC = 0.95, ESC = 0.72;      /* масштабы спрайтов: под размер клетки */
+var TSC = 1.0, ESC = 0.86;       /* масштабы спрайтов: под размер клетки */
 
 function drawTower(g, t, ghost) {
   var spr = SPR.TOWER[t.type];
@@ -168,7 +168,7 @@ function hpBar(g, cx, y, w, k) {
 function drawEnemy(g, e) {
   var sheet = SPR.ENEMY[e.type];
   if (!sheet) return;
-  var fr = (Math.floor(e.wob * 0.35) % 2 + 2) % 2;
+  var fr = (Math.floor(e.wob * 0.35) % 4 + 4) % 4;
   var p = iso(e.x, e.y);
   g.fillStyle = 'rgba(0,0,0,.24)';
   g.beginPath(); g.ellipse(p.x, p.y + U * 0.10, U * 0.21, U * 0.09, 0, 0, 6.283); g.fill();
