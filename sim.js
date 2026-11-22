@@ -108,10 +108,32 @@ function mulberry32(a) {
 }
 
 /* ---------- игра ---------- */
-function newGame(seed) {
+/* постоянные улучшения: множители из мета-прогрессии */
+function metaMods(meta) {
+  var up = (meta && meta.up) || {};
+  return {
+    dmg: 1 + 0.06 * (up.dmg || 0),
+    range: 1 + 0.05 * (up.range || 0),
+    income: 1 + 0.15 * (up.income || 0),
+    slow: 1 + 0.08 * (up.slow || 0)
+  };
+}
+function applyMetaStats(G, st) {
+  var m = G.meta;
+  if (!m) return st;
+  st.dmg = Math.round(st.dmg * m.dmg * 10) / 10;
+  st.range = Math.round(st.range * m.range * 100) / 100;
+  if (st.slow) st.slow = Math.min(0.75, st.slow * m.slow);
+  return st;
+}
+
+function newGame(seed, meta) {
+  var up = (meta && meta.up) || {};
   return {
     seed: (seed >>> 0) || 1, rng: mulberry32((seed >>> 0) || 1),
-    gold: TUNE.START_GOLD, lives: TUNE.LIVES, wave: 0, phase: 'build',
+    meta: metaMods(meta),
+    gold: TUNE.START_GOLD + 40 * (up.gold || 0),
+    lives: TUNE.LIVES + 2 * (up.hp || 0), wave: 0, phase: 'build',
     time: 0, buildLeft: BUILD_SECONDS,
     towers: [], enemies: [], shots: [], parts: [], rings: [], pops: [], sfx: [],
     queue: [], spawnT: 0, waveHp: 0,
@@ -187,7 +209,7 @@ function damage(G, e, dmg, sp) {
   if (sp && sp.slow) { e.slowT = sp.slowDur; e.slowMul = sp.slow; }
   if (e.hp <= 0) {
     e.dead = true;
-    G.gold += e.gold;
+    G.gold += Math.round(e.gold * (G.meta ? G.meta.income : 1));
     G.kills++;
     G.pops.push({ x: e.x, y: e.y, txt: '+' + e.gold, life: 0.85, max: 0.85 });
     G.sfx.push('coin');
@@ -361,7 +383,7 @@ function placeTower(G, c, r, type) {
   G.gold -= sp.cost;
   var p = PX(c, r);
   var t = { id: G.nextId++, c: c, r: r, x: p.x, y: p.y, type: type, lvl: 1, cd: 0, spent: sp.cost, recoil: 0 };
-  t.st = towerStats(type, 1);
+  t.st = applyMetaStats(G, towerStats(type, 1));
   G.towers.push(t);
   return { ok: true, tower: t };
 }
@@ -373,7 +395,7 @@ function upgrade(G, id) {
   var cost = upCost(t);
   if (G.gold < cost) return { ok: false, why: 'не хватает золота' };
   G.gold -= cost; t.spent += cost; t.lvl++;
-  t.st = towerStats(t.type, t.lvl);
+  t.st = applyMetaStats(G, towerStats(t.type, t.lvl));
   return { ok: true };
 }
 function sell(G, id) {

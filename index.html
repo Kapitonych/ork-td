@@ -148,6 +148,29 @@
     background:linear-gradient(#6d5a20,#453714); border:1px solid #b08f36; color:#f7e6b6;
   }
   #winStars{font-size:26px; letter-spacing:4px; color:var(--gold); margin-bottom:6px;}
+  #btnMeta b{color:var(--gold);}
+  #metaPanel{
+    position:absolute; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
+    background:rgba(8,9,6,.86); padding:14px;
+  }
+  #metaPanel.hidden{display:none;}
+  .metaCard{max-width:360px; max-height:92vh; overflow:auto; text-align:left;}
+  .metaCard h2{text-align:center;}
+  #metaHint{font-size:12px; color:#a9a48d; text-align:center;}
+  .mrow{
+    display:flex; align-items:center; gap:10px; padding:8px 0;
+    border-top:1px solid rgba(120,112,84,.28);
+  }
+  .mrow:first-child{border-top:none;}
+  .mrow .mi{flex:1; min-width:0;}
+  .mrow .mn{font-size:13.5px; color:#efe7cf; font-weight:600;}
+  .mrow .md{font-size:11px; color:#9c987f; line-height:1.35;}
+  .mrow .pips{letter-spacing:1px; color:var(--gold); font-size:11px;}
+  .mrow button{
+    flex:0 0 auto; width:auto; padding:7px 10px; font-size:12.5px; border-radius:8px;
+    background:linear-gradient(#6d5a20,#453714); border:1px solid #b08f36; color:#f7e6b6;
+  }
+  .mrow button:disabled{opacity:.42;}
   @media (max-height:700px){
     #hud{padding:5px 8px;} .stat{font-size:14px; padding:3px 7px;}
     #btnWave{padding:11px; font-size:15px;}
@@ -162,6 +185,7 @@
     <div class="stat"><span class="ico">🛡</span><b id="hudLives">20</b></div>
     <div class="stat"><span class="ico">⚔</span><b id="hudWave">0/10</b></div>
     <div class="spacer"></div>
+    <button id="btnMeta" class="mini" title="Улучшения">★ <b id="metaStars">0</b></button>
     <button id="btnSnd" class="mini" title="Звук">♪</button>
     <button id="btnSpeed" class="mini">×1</button>
   </header>
@@ -190,6 +214,15 @@
   </footer>
 </div>
 
+<div id="metaPanel" class="hidden">
+  <div class="card metaCard">
+    <h2>Улучшения замка</h2>
+    <p id="metaHint">Звёзды дают за пройденные волны — трать их здесь, бонусы остаются навсегда.</p>
+    <div id="metaList"></div>
+    <button id="metaClose">Закрыть</button>
+  </div>
+</div>
+
 <div id="overlay" class="hidden">
   <div class="card">
     <div id="winStars"></div>
@@ -199,9 +232,9 @@
   </div>
 </div>
 
-<script src="sim.js?v=202611221837"></script>
-<script src="sprites.js?v=202611221837"></script>
-<script src="platform.js?v=202611221837"></script>
-<script src="view.js?v=202611221837"></script>
+<script src="sim.js?v=202611221923"></script>
+<script src="sprites.js?v=202611221923"></script>
+<script src="platform.js?v=202611221923"></script>
+<script src="view.js?v=202611221923"></script>
 </body>
 </html>

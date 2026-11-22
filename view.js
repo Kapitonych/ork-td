@@ -26,15 +26,68 @@ var el = {
   brTitle: document.getElementById('brTitle'), brCount: document.getElementById('brCount'),
   brIcons: document.getElementById('brIcons'), brDef: document.getElementById('brDef'),
   waveTrack: document.getElementById('waveTrack'),
-  stTowers: document.getElementById('stTowers'), stDps: document.getElementById('stDps'), stGold: document.getElementById('stGold')
+  stTowers: document.getElementById('stTowers'), stDps: document.getElementById('stDps'), stGold: document.getElementById('stGold'),
+  metaStars: document.getElementById('metaStars')
 };
 
 window.__errs = [];
 window.addEventListener('error', function (e) { window.__errs.push(String(e.message || e.error)); });
 window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rej: ' + e.reason); });
 
-var G = SIM.newGame((Date.now() & 0x7fffffff) || 7);
-var UI = { placing: null, sel: null, ghost: null, speed: 1, toastT: 0, hudT: 0, record: 0 };
+/* ================= мета-прогрессия ================= */
+var UPGRADES = [
+  { key: 'hp',     name: 'Стены замка', desc: '+2 жизни на старте',      max: 3, cost: [1, 2, 3] },
+  { key: 'gold',   name: 'Казна',       desc: '+40 золота на старте',    max: 3, cost: [1, 2, 3] },
+  { key: 'dmg',    name: 'Кузня',       desc: '+6% урона всех башен',    max: 4, cost: [1, 2, 3, 4] },
+  { key: 'range',  name: 'Оптика',      desc: '+5% радиуса башен',       max: 3, cost: [2, 3, 4] },
+  { key: 'income', name: 'Сборщики',    desc: '+15% золота с убийств',   max: 3, cost: [2, 3, 4] },
+  { key: 'slow',   name: 'Мороз',       desc: '+8% к силе замедления',   max: 3, cost: [2, 3, 4] }
+];
+var META = (function () {
+  var d = Platform.load() || {};
+  var up = d.up || {}, out = { stars: d.stars || 0, up: {} };
+  UPGRADES.forEach(function (u) { out.up[u.key] = Math.max(0, Math.min(u.max, up[u.key] || 0)); });
+  return out;
+})();
+function saveMeta() {
+  try { Platform.save({ stars: META.stars, up: META.up, bestStars: UI.record }); } catch (e) {}
+}
+function metaCost(u) { return u.cost[META.up[u.key]] != null ? u.cost[META.up[u.key]] : null; }
+
+function renderMeta() {
+  var box = document.getElementById('metaList');
+  if (!box) return;
+  document.getElementById('metaStars').textContent = META.stars;
+  box.innerHTML = '';
+  UPGRADES.forEach(function (u) {
+    var lvl = META.up[u.key], c = metaCost(u);
+    var row = document.createElement('div');
+    row.className = 'mrow';
+    var pips = '';
+    for (var i = 0; i < u.max; i++) pips += i < lvl ? '★' : '☆';
+    row.innerHTML = '<div class="mi"><div class="mn">' + u.name + ' <span class="pips">' + pips + '</span></div>' +
+      '<div class="md">' + u.desc + '</div></div>';
+    var btn = document.createElement('button');
+    btn.textContent = c == null ? 'Максимум' : '★ ' + c;
+    btn.disabled = c == null || META.stars < c;
+    btn.addEventListener('click', function () { buyUp(u); });
+    row.appendChild(btn);
+    box.appendChild(row);
+  });
+}
+function buyUp(u) {
+  var c = metaCost(u);
+  if (c == null || META.stars < c) return;
+  META.stars -= c;
+  META.up[u.key]++;
+  saveMeta(); renderMeta();
+  SFX.build(); Platform.haptic('success');
+}
+function openMeta() { renderMeta(); document.getElementById('metaPanel').classList.remove('hidden'); }
+function closeMeta() { document.getElementById('metaPanel').classList.add('hidden'); }
+
+var G = SIM.newGame((Date.now() & 0x7fffffff) || 7, META);
+var UI = { placing: null, sel: null, ghost: null, speed: 1, toastT: 0, hudT: 0, record: 0, awarded: false };
 try { UI.record = (Platform.load() || {}).bestStars || 0; } catch (e) {}
 
 var ORDER = Object.keys(SIM.TOWERS).sort(function (a, b) { return SIM.TOWERS[a].cost - SIM.TOWERS[b].cost; });
@@ -496,7 +549,8 @@ function buildRail() {
 }
 
 function updateUI() {
-  el.gold.textContent = G.gold;
+  if (el.metaStars) el.metaStars.textContent = META.stars;
+  el.gold.textContent = Math.floor(G.gold);
   el.lives.textContent = G.lives;
   el.wave.textContent = Math.min(G.wave, SIM.WAVES) + '/' + SIM.WAVES;
   el.speed.textContent = '×' + UI.speed;
@@ -645,6 +699,11 @@ el.waveBtn.addEventListener('click', function () {
   updateUI(); render();
 });
 
+var metaBtn = document.getElementById('btnMeta');
+if (metaBtn) metaBtn.addEventListener('click', function () { audioInit(); openMeta(); });
+var metaCloseBtn = document.getElementById('metaClose');
+if (metaCloseBtn) metaCloseBtn.addEventListener('click', function () { closeMeta(); });
+
 var sndBtn = document.getElementById('btnSnd');
 if (sndBtn) {
   sndBtn.addEventListener('click', function () {
@@ -686,6 +745,19 @@ function showOverlay() {
     ? 'Волн: ' + G.wave + ' · Убито: ' + G.kills + ' · Жизней: ' + G.lives
     : 'Орки прорвались на волне ' + G.wave + ' · Убито: ' + G.kills;
   overlay.classList.remove('hidden');
+
+  /* звёзды за забег: за победу — по числу звёзд, за поражение с 5-й волны — одна утешительная */
+  if (!UI.awarded) {
+    UI.awarded = true;
+    var gain = win ? Math.max(1, G.stars) : (G.wave >= 5 ? 1 : 0);
+    if (gain > 0) {
+      META.stars += gain;
+      saveMeta();
+      el.ovText.textContent += ' · +' + gain + '★';
+      if (el.metaStars) el.metaStars.textContent = META.stars;
+    }
+  }
+
   if (G.stars > UI.record) {
     UI.record = G.stars;
     try { Platform.save({ bestStars: UI.record, lastWave: G.wave }); } catch (e) {}
@@ -694,7 +766,8 @@ function showOverlay() {
 }
 
 function restart() {
-  G = SIM.newGame((Date.now() & 0x7fffffff) || 11);
+  G = SIM.newGame((Date.now() & 0x7fffffff) || 11, META);
+  UI.awarded = false;
   UI.sel = null; UI.placing = null; UI.ghost = null;
   overlay.classList.add('hidden');
   updateUI(); render();
